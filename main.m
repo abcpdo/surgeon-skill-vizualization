@@ -1,4 +1,4 @@
-close all; clear all
+close all; clear all; clc
 
 %access all names: meta(:).filename  
 %access one name: meta(5).filename
@@ -21,11 +21,19 @@ num_surgeons = size(meta,1);
 kinematics = containers.Map('KeyType','double','ValueType','any');
 i = 1;
 for name = {meta(:).filename}
-   disp('Importing: ' + string(name));
+   disp('Importing kinematics: ' + string(name));
    kinematics(i) = importdata('JIGSAWS/Suturing/kinematics/AllGestures/'+string(name)+'.txt');
    i = i + 1;
 end
 
+%% Import transcriptions
+transcriptions = containers.Map('KeyType','double','ValueType','any');
+i = 1;
+for name = {meta(:).filename}
+   disp('Importing transcriptions: ' + string(name));
+   transcriptions(i) = importdata('JIGSAWS/Suturing/transcriptions/'+string(name)+'.txt');
+   i = i + 1;
+end
 %% Visualize something
 N = [];
 I = [];
@@ -47,6 +55,7 @@ hAxes = axes('NextPlot','add',...           %# Add subsequent plots to the axes,
              'XLim',[0 30],...               %#   set the x axis limit,
              'YLim',[0 eps],...             %#   set the y axis limit (tiny!),
              'Color','none');               %#   and don't use a background color
-plot(N,0,'r.',I,0,'g.',E,0,'b.','MarkerSize',10);  %# Plot data set 1
+plot(N,0,'r+',I,0,'gx',E,0,'bo','MarkerSize',10);  %# Plot data set 1
 hold on
-legend('Novice','Intermediate','Expert');
+title("Self Proclaimed Skill vs GRS Skill");
+%legend('Novice','Intermediate','Expert');
