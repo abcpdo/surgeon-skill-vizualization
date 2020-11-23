@@ -47,7 +47,7 @@ for i = 1:num_surgeons
    if(meta(i).skill_self == 'E')
        Kinematics_i = K(i);
        Transcription_i = T(i);
-       Selection = cell2mat(Transcription_i(cell2mat(Transcription_i(:,3)) == Gesture,1:2));
+       Selection = cell2mat(Transcription_i{cell2mat([Transcription_i{:,3}]) == Gesture,1:2});
        frame_start = Selection(:,1);
        frame_end = Selection(:,2);
        
