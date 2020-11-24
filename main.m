@@ -39,7 +39,8 @@ end
 
 %plot one kinematics of one gesture for all relevant surgeons
 
-Gesture = 'G' + string(10);  %enter number of gesture
+gesture_number = 2;
+Gesture = 'G' + string(gesture_number);  %enter number of gesture
 
 for i = 1:num_surgeons
        Kinematics_i = K(i);   %Get ith kinematics file
@@ -86,7 +87,13 @@ for i = 1:num_surgeons
            quiver3(xyz_l(:,1),xyz_l(:,2),xyz_l(:,3),vel_l(:,1)*vel_scale,vel_l(:,2)*vel_scale,vel_l(:,3)*vel_scale,'r','AutoScale','off');
            hold on
        end
-       
+       sgtitle("Experts vs Novice Left Tool Kinematics on Gesture " + string(gesture_number));
+       subplot(1, 3, 1);
+       title('Position');
+       subplot(1, 3, 2);
+       title('Velocity');
+       subplot(1, 3, 3);
+       title('Position & Velocity');
 end
 
 
