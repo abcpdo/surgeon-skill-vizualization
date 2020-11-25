@@ -43,8 +43,6 @@ Gesture = 'G' + string(gesture_number);  %enter number of gesture
 
 
 for i = 1:num_surgeons
-       color1 = [0.2+rand(1)*0.4 0.8+rand(1)*0.2 0.2+rand(1)*0.4];
-       color2 = [0.8+rand(1)*0.2 0.2+rand(1)*0.4 0.2+rand(1)*0.4];
        Kinematics_i = K(i);   %Get ith kinematics file
        Transcription_i = T(i);   %Get ith transcription file
        index = find(strcmp(Transcription_i(:,3), Gesture));   % Get frame stamps for the gesture
@@ -73,46 +71,46 @@ for i = 1:num_surgeons
        
            vel_scale = 0.1;
            if(meta(i).experience == 'E' && size(xyz_l,1) > 0)  %if expert
-          
+               color = [100+(rand(1)-0.5)*10 0 0];
                subplot(2, 3, 1);
-               plot3(xyz_l(:,1),xyz_l(:,2),xyz_l(:,3),'Color',color1);
+               plot3(xyz_l(:,1),xyz_l(:,2),xyz_l(:,3),'Color',color);
                hold on
                subplot(2, 3, 2);
-               plot3(vel_l(:,1),vel_l(:,2),vel_l(:,3),'Color',color1);
+               plot3(vel_l(:,1),vel_l(:,2),vel_l(:,3),'Color',color);
                hold on
                subplot(2, 3, 3);
-               quiver3(xyz_l(:,1),xyz_l(:,2),xyz_l(:,3),vel_l(:,1)*vel_scale,vel_l(:,2)*vel_scale,vel_l(:,3)*vel_scale,'Color',color1,'AutoScale','on');
+               quiver3(xyz_l(:,1),xyz_l(:,2),xyz_l(:,3),vel_l(:,1)*vel_scale,vel_l(:,2)*vel_scale,vel_l(:,3)*vel_scale,'Color',color,'AutoScale','on');
                hold on
                subplot(2, 3, 4);
-               plot3(xyz_r(:,1),xyz_r(:,2),xyz_r(:,3),'Color',color1);
+               plot3(xyz_r(:,1),xyz_r(:,2),xyz_r(:,3),'Color',color);
                hold on
                subplot(2, 3, 5);
-               plot3(vel_r(:,1),vel_r(:,2),vel_r(:,3),'Color',color1);
+               plot3(vel_r(:,1),vel_r(:,2),vel_r(:,3),'Color',color);
                hold on
                subplot(2, 3, 6);
-               quiver3(xyz_r(:,1),xyz_r(:,2),xyz_r(:,3),vel_r(:,1)*vel_scale,vel_r(:,2)*vel_scale,vel_r(:,3)*vel_scale,'Color',color1,'AutoScale','on');
+               quiver3(xyz_r(:,1),xyz_r(:,2),xyz_r(:,3),vel_r(:,1)*vel_scale,vel_r(:,2)*vel_scale,vel_r(:,3)*vel_scale,'Color',color,'AutoScale','on');
                hold on          
            end
 
            if(meta(i).experience =='N' && size(xyz_l,1) > 0)  %if novice
-               
+               color = [0 0.5+rand(1)*0.2 0];
                subplot(2, 3, 1);
-               plot3(xyz_l(:,1),xyz_l(:,2),xyz_l(:,3),'Color',color2);
+               plot3(xyz_l(:,1),xyz_l(:,2),xyz_l(:,3),'Color',color);
                hold on
                subplot(2, 3, 2);
-               plot3(vel_l(:,1),vel_l(:,2),vel_l(:,3),'Color',color2);
+               plot3(vel_l(:,1),vel_l(:,2),vel_l(:,3),'Color',color);
                hold on
                subplot(2, 3, 3);
-               quiver3(xyz_l(:,1),xyz_l(:,2),xyz_l(:,3),vel_l(:,1)*vel_scale,vel_l(:,2)*vel_scale,vel_l(:,3)*vel_scale,'Color',color2,'AutoScale','off');
+               quiver3(xyz_l(:,1),xyz_l(:,2),xyz_l(:,3),vel_l(:,1)*vel_scale,vel_l(:,2)*vel_scale,vel_l(:,3)*vel_scale,'Color',color,'AutoScale','off');
                hold on
                subplot(2, 3, 4);
-               plot3(xyz_r(:,1),xyz_r(:,2),xyz_r(:,3),'Color',color2);
+               plot3(xyz_r(:,1),xyz_r(:,2),xyz_r(:,3),'Color',color);
                hold on
                subplot(2, 3, 5);
-               plot3(vel_r(:,1),vel_r(:,2),vel_r(:,3),'Color',color2);
+               plot3(vel_r(:,1),vel_r(:,2),vel_r(:,3),'Color',color);
                hold on
                subplot(2, 3, 6);
-               quiver3(xyz_r(:,1),xyz_r(:,2),xyz_r(:,3),vel_r(:,1)*vel_scale,vel_r(:,2)*vel_scale,vel_r(:,3)*vel_scale,'Color',color2,'AutoScale','off');
+               quiver3(xyz_r(:,1),xyz_r(:,2),xyz_r(:,3),vel_r(:,1)*vel_scale,vel_r(:,2)*vel_scale,vel_r(:,3)*vel_scale,'Color',color,'AutoScale','off');
                hold on                     
            end
        
