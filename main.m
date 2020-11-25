@@ -48,52 +48,82 @@ for i = 1:num_surgeons
        index = find(strcmp(Transcription_i(:,3), Gesture));   % Get frame stamps for the gesture
        xyz_l = [];
        vel_l = [];
+       xyz_r = [];
+       vel_r = [];
        for j = 1:size(index,1)
           frame_start = cell2mat(Transcription_i(index(j),1));
           frame_end = cell2mat(Transcription_i(index(j),2));
           
-          %try to rotate gestures to line up
-          xyz_j = Kinematics_i(frame_start:frame_end,1:3)-repmat(Kinematics_i(frame_start,1:3),frame_end-frame_start+1,1);
-          axis = cross([1 0 0],xyz_j(10,:));
-          angle = real(acos(max(min(dot([1 0 0],xyz_j(10,:))/(norm([1 0 0])*norm(xyz_j(10,:))),1),-1)));
-          R = Rot(transpose(axis),angle);
-%           xyz_j = transpose(R*transpose(xyz_j));
+          xyz_l_j = Kinematics_i(frame_start:frame_end,39:41)-repmat(Kinematics_i(frame_start,39:41),frame_end-frame_start+1,1);
+          xyz_r_j = Kinematics_i(frame_start:frame_end,58:60)-repmat(Kinematics_i(frame_start,58:60),frame_end-frame_start+1,1);
           
-          xyz_l = [xyz_l;xyz_j];
-          vel_l = [vel_l;Kinematics_i(frame_start:frame_end,13:15)];
+          %try to rotate gestures to line up
+%           axis = cross([1 0 0],xyz_j(10,:));
+%           angle = real(acos(max(min(dot([1 0 0],xyz_j(10,:))/(norm([1 0 0])*norm(xyz_j(10,:))),1),-1)));
+%           R = Rot(transpose(axis),angle);
+%         xyz_j = transpose(R*transpose(xyz_j));
+          
+          xyz_l = [xyz_l;xyz_l_j];
+          vel_l = [vel_l;Kinematics_i(frame_start:frame_end,51:53)];
+          xyz_r = [xyz_r;xyz_r_j];
+          vel_r = [vel_r;Kinematics_i(frame_start:frame_end,70:72)];
        end
             
        vel_scale = 0.1;
-       if(meta(i).skill_self == 'E' && size(xyz_l,1) > 0)  %if expert
-           subplot(1, 3, 1);
+       if(meta(i).Score2 >=4 && size(xyz_l,1) > 0)  %if expert
+           subplot(2, 3, 1);
            plot3(xyz_l(:,1),xyz_l(:,2),xyz_l(:,3),'g');
            hold on
-           subplot(1, 3, 2);
+           subplot(2, 3, 2);
            plot3(vel_l(:,1),vel_l(:,2),vel_l(:,3),'g');
            hold on
-           subplot(1, 3, 3);
-           quiver3(xyz_l(:,1),xyz_l(:,2),xyz_l(:,3),vel_l(:,1)*vel_scale,vel_l(:,2)*vel_scale,vel_l(:,3)*vel_scale,'g','AutoScale','off');
+           subplot(2, 3, 3);
+           quiver3(xyz_l(:,1),xyz_l(:,2),xyz_l(:,3),vel_l(:,1)*vel_scale,vel_l(:,2)*vel_scale,vel_l(:,3)*vel_scale,'g','AutoScale','on');
            hold on
+           subplot(2, 3, 4);
+           plot3(xyz_r(:,1),xyz_r(:,2),xyz_r(:,3),'g');
+           hold on
+           subplot(2, 3, 5);
+           plot3(vel_r(:,1),vel_r(:,2),vel_r(:,3),'g');
+           hold on
+           subplot(2, 3, 6);
+           quiver3(xyz_r(:,1),xyz_r(:,2),xyz_r(:,3),vel_r(:,1)*vel_scale,vel_r(:,2)*vel_scale,vel_r(:,3)*vel_scale,'g','AutoScale','on');
+           hold on          
        end
        
-       if(meta(i).skill_self == 'N' && size(xyz_l,1) > 0)  %if novice
-           subplot(1, 3, 1);
+       if(meta(i).Score2 <= 2 && size(xyz_l,1) > 0)  %if novice
+           subplot(2, 3, 1);
            plot3(xyz_l(:,1),xyz_l(:,2),xyz_l(:,3),'r');
            hold on
-           subplot(1, 3, 2);
+           subplot(2, 3, 2);
            plot3(vel_l(:,1),vel_l(:,2),vel_l(:,3),'r');
            hold on
-           subplot(1, 3, 3);
+           subplot(2, 3, 3);
            quiver3(xyz_l(:,1),xyz_l(:,2),xyz_l(:,3),vel_l(:,1)*vel_scale,vel_l(:,2)*vel_scale,vel_l(:,3)*vel_scale,'r','AutoScale','off');
            hold on
+           subplot(2, 3, 4);
+           plot3(xyz_r(:,1),xyz_r(:,2),xyz_r(:,3),'r');
+           hold on
+           subplot(2, 3, 5);
+           plot3(vel_r(:,1),vel_r(:,2),vel_r(:,3),'r');
+           hold on
+           subplot(2, 3, 6);
+           quiver3(xyz_r(:,1),xyz_r(:,2),xyz_r(:,3),vel_r(:,1)*vel_scale,vel_r(:,2)*vel_scale,vel_r(:,3)*vel_scale,'r','AutoScale','off');
+           hold on                     
        end
-       sgtitle("Experts vs Novice Left Tool Kinematics on Gesture " + string(gesture_number));
-       subplot(1, 3, 1);
-       title('Position');
-       subplot(1, 3, 2);
-       title('Velocity');
-       subplot(1, 3, 3);
-       title('Position & Velocity');
+       sgtitle("Experts vs Novice Slave Tooltip Kinematics on Gesture " + string(gesture_number));
+       subplot(2, 3, 1);
+       title('L Position');
+       subplot(2, 3, 2);
+       title('L Velocity (Translational)');
+       subplot(2, 3, 3);
+       title('L Position & Velocity');
+       subplot(2, 3, 4);
+       title('R Position');
+       subplot(2, 3, 5);
+       title('R Velocity (Translational)');
+       subplot(2, 3, 6);
+       title('R Position & Velocity');
 end
 
 
