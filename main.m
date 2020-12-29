@@ -35,16 +35,19 @@ for name = {meta(:).filename}
    T(i) = table2cell(readtable('JIGSAWS/Suturing/transcriptions/'+string(name)+'.txt'));
    i = i + 1;
 end
-%% Visualize something
-
+%% Plot stuff
+close all
 %plot one kinematics of one gesture for all relevant surgeons
-gesture_number = 2;
+gesture_number = 4;
 Gesture = 'G' + string(gesture_number);  %enter number of gesture
 
+balance = 40;
+gestures_E = 0;
+gestures_N = 0;
 
 for i = 1:num_surgeons
-       color1 = [0.2+rand(1)*0.4 0.8+rand(1)*0.2 0.2+rand(1)*0.4];
-       color2 = [0.8+rand(1)*0.2 0.2+rand(1)*0.4 0.2+rand(1)*0.4];
+       color1 = [0.2+rand(1)*0.3 0.8+rand(1)*0.2 0.2+rand(1)*0.3];
+       color2 = [0.8+rand(1)*0.2 0.2+rand(1)*0.3 0.2+rand(1)*0.3];
        Kinematics_i = K(i);   %Get ith kinematics file
        Transcription_i = T(i);   %Get ith transcription file
        index = find(strcmp(Transcription_i(:,3), Gesture));   % Get frame stamps for the gesture
@@ -52,50 +55,55 @@ for i = 1:num_surgeons
        vel_l = [];
        xyz_r = [];
        vel_r = [];
+       
        for j = 1:size(index,1)
           frame_start = cell2mat(Transcription_i(index(j),1));
           frame_end = cell2mat(Transcription_i(index(j),2));
           
-          xyz_l = Kinematics_i(frame_start:frame_end,39:41)-repmat(Kinematics_i(frame_start,39:41),frame_end-frame_start+1,1);
-          xyz_r = Kinematics_i(frame_start:frame_end,58:60)-repmat(Kinematics_i(frame_start,58:60),frame_end-frame_start+1,1);
-         
-          
-
-          %try to rotate gestures to line up
+                    %try to rotate gestures to line up
 %           axis = cross([1 0 0],xyz_j(10,:));
 %           angle = real(acos(max(min(dot([1 0 0],xyz_j(10,:))/(norm([1 0 0])*norm(xyz_j(10,:))),1),-1)));
 %           R = Rot(transpose(axis),angle);
 %         xyz_j = transpose(R*transpose(xyz_j));
           
 
-          vel_l = Kinematics_i(frame_start:frame_end,51:53);
-          vel_r = Kinematics_i(frame_start:frame_end,70:72);
-       
-           vel_scale = 0.1;
-           if(meta(i).experience == 'E' && size(xyz_l,1) > 0)  %if expert
+          xyz_l = Kinematics_i(frame_start:frame_end,1:3)-repmat(Kinematics_i(frame_start,1:3),frame_end-frame_start+1,1);
+          xyz_r = Kinematics_i(frame_start:frame_end,20:22)-repmat(Kinematics_i(frame_start,20:22),frame_end-frame_start+1,1);
+          vel_l = Kinematics_i(frame_start:frame_end,13:15);
+          vel_r = Kinematics_i(frame_start:frame_end,32:34);
+          vel_l_rot = Kinematics_i(frame_start:frame_end,16:18);
+          vel_r_rot = Kinematics_i(frame_start:frame_end,35:37);  
           
+           vel_scale = 0.1;
+
+           if(meta(i).experience == 'E' && size(xyz_l,1) > 0 && gestures_E < balance)  %if expert
                subplot(2, 3, 1);
-               plot3(xyz_l(:,1),xyz_l(:,2),xyz_l(:,3),'Color',color1);
+               plot3(xyz_l(:,1)+0.05,xyz_l(:,2),xyz_l(:,3),'Color',color1);
                hold on
                subplot(2, 3, 2);
-               plot3(vel_l(:,1),vel_l(:,2),vel_l(:,3),'Color',color1);
+               plot3(vel_l(:,1)+0.2,vel_l(:,2),vel_l(:,3),'Color',color1);
                hold on
                subplot(2, 3, 3);
-               quiver3(xyz_l(:,1),xyz_l(:,2),xyz_l(:,3),vel_l(:,1)*vel_scale,vel_l(:,2)*vel_scale,vel_l(:,3)*vel_scale,'Color',color1,'AutoScale','on');
+               plot3(vel_l_rot(:,1)+8,vel_l_rot(:,2),vel_l_rot(:,3),'Color',color1);
+               %quiver3(xyz_l(:,1)+0.05,xyz_l(:,2),xyz_l(:,3),vel_l(:,1)*vel_scale,vel_l(:,2)*vel_scale,vel_l(:,3)*vel_scale,'Color',color1,'AutoScale','on');
                hold on
                subplot(2, 3, 4);
-               plot3(xyz_r(:,1),xyz_r(:,2),xyz_r(:,3),'Color',color1);
+               plot3(xyz_r(:,1)+0.05,xyz_r(:,2),xyz_r(:,3),'Color',color1);
                hold on
                subplot(2, 3, 5);
-               plot3(vel_r(:,1),vel_r(:,2),vel_r(:,3),'Color',color1);
+               plot3(vel_r(:,1)+0.2,vel_r(:,2),vel_r(:,3),'Color',color1);
                hold on
                subplot(2, 3, 6);
-               quiver3(xyz_r(:,1),xyz_r(:,2),xyz_r(:,3),vel_r(:,1)*vel_scale,vel_r(:,2)*vel_scale,vel_r(:,3)*vel_scale,'Color',color1,'AutoScale','on');
+               plot3(vel_r_rot(:,1)+8,vel_r_rot(:,2),vel_r_rot(:,3),'Color',color1);
+               %quiver3(xyz_r(:,1)+0.05,xyz_r(:,2),xyz_r(:,3),vel_r(:,1)*vel_scale,vel_r(:,2)*vel_scale,vel_r(:,3)*vel_scale,'Color',color1,'AutoScale','on');
                hold on          
+               gestures_E = gestures_E + 1;
            end
 
-           if(meta(i).experience =='N' && size(xyz_l,1) > 0)  %if novice
-               
+            
+           
+           if(meta(i).experience =='N' && size(xyz_l,1) > 0 && gestures_N < balance)  %if novice
+
                subplot(2, 3, 1);
                plot3(xyz_l(:,1),xyz_l(:,2),xyz_l(:,3),'Color',color2);
                hold on
@@ -103,7 +111,8 @@ for i = 1:num_surgeons
                plot3(vel_l(:,1),vel_l(:,2),vel_l(:,3),'Color',color2);
                hold on
                subplot(2, 3, 3);
-               quiver3(xyz_l(:,1),xyz_l(:,2),xyz_l(:,3),vel_l(:,1)*vel_scale,vel_l(:,2)*vel_scale,vel_l(:,3)*vel_scale,'Color',color2,'AutoScale','off');
+               plot3(vel_l_rot(:,1),vel_l_rot(:,2),vel_l_rot(:,3),'Color',color2);
+               %quiver3(xyz_l(:,1),xyz_l(:,2),xyz_l(:,3),vel_l(:,1)*vel_scale,vel_l(:,2)*vel_scale,vel_l(:,3)*vel_scale,'Color',color2,'AutoScale','off');
                hold on
                subplot(2, 3, 4);
                plot3(xyz_r(:,1),xyz_r(:,2),xyz_r(:,3),'Color',color2);
@@ -112,28 +121,29 @@ for i = 1:num_surgeons
                plot3(vel_r(:,1),vel_r(:,2),vel_r(:,3),'Color',color2);
                hold on
                subplot(2, 3, 6);
-               quiver3(xyz_r(:,1),xyz_r(:,2),xyz_r(:,3),vel_r(:,1)*vel_scale,vel_r(:,2)*vel_scale,vel_r(:,3)*vel_scale,'Color',color2,'AutoScale','off');
-               hold on                     
+               plot3(vel_r_rot(:,1),vel_r_rot(:,2),vel_r_rot(:,3),'Color',color2);
+               %quiver3(xyz_r(:,1),xyz_r(:,2),xyz_r(:,3),vel_r(:,1)*vel_scale,vel_r(:,2)*vel_scale,vel_r(:,3)*vel_scale,'Color',color2,'AutoScale','off');
+               hold on 
+               gestures_N = gestures_N + 1;
            end
-       
-       
        end
-       sgtitle("Experts vs Novice Slave Tooltip Kinematics on Gesture " + string(gesture_number));
-       subplot(2, 3, 1);
-       title('L Position');
-       subplot(2, 3, 2);
-       title('L Velocity (Translational)');
-       subplot(2, 3, 3);
-       title('L Position & Velocity');
-       subplot(2, 3, 4);
-       title('R Position');
-       subplot(2, 3, 5);
-       title('R Velocity (Translational)');
-       subplot(2, 3, 6);
-       title('R Position & Velocity');
 end
 
+disp(gestures_N - gestures_E);
 
+sgtitle("Experts vs Novice Master Tooltip Kinematics on Gesture " + string(gesture_number));
+subplot(2, 3, 1);
+title('L Position');
+subplot(2, 3, 2);
+title('L Velocity (Translational)');
+subplot(2, 3, 3);
+title('L Velocity (Rotational)');
+subplot(2, 3, 4);
+title('R Position');
+subplot(2, 3, 5);
+title('R Velocity (Translational)');
+subplot(2, 3, 6);
+title('R Velocity (Rotational)');
 
 
 % N = [];
