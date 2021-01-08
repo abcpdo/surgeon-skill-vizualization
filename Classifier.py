@@ -4,12 +4,15 @@ from tensorflow import keras
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Dropout, Activation, Flatten
 from tensorflow.keras.layers import Convolution2D, MaxPooling2D
-from tensorflow.keras.utils import np_utils
-from tensorflow.keras.datasets import mnist
+#from tensorflow.keras.utils import np_utils
+#from tensorflow.keras.datasets import mnist
 import numpy as np
+import random
+import os
+from pandas import read_csv
 from pandas import DataFrame
-from pandas import concat
- 
+
+
 def series_to_supervised(data, n_in=1, n_out=1, dropnan=True):
 	"""
 	Frame a time series as a supervised learning dataset.
@@ -43,10 +46,35 @@ def series_to_supervised(data, n_in=1, n_out=1, dropnan=True):
 		agg.dropna(inplace=True)
 	return agg
  
+def load_file(filepath):
+	dataframe = read_csv(filepath, header = None)
+	return dataframe.to_numpy()  #returns as array
+
+def load_samples(filepath):
+	Output = []  #list of 2d arrays
+	Samples = load_file(filepath)
+	Two_D = np.empty((0,Samples.shape[1]))
+	
+	flag = True
+
+	for i in range(Samples.shape[0]):
+		if not np.isnan(Samples[i,0]):   #if the first element of each line is not NaN
+			Two_D = np.vstack([Two_D,Samples[i,:]])
+		else:
+			Output.append(Two_D) #stack on the 2d array
+			Two_D = np.empty((0,Samples.shape[1]))   #empty the 2d array
+			
+	return Output
+
+__location__ = os.path.realpath(
+    os.path.join(os.getcwd(), os.path.dirname(__file__)))
+Expert_Gestures = load_samples(os.path.join(__location__, 'ExpertSamples.csv'))
+Novice_Gestures = load_samples(os.path.join(__location__, 'NoviceSamples.csv'))
+Mixed_Gestures = random.shuffle(Expert_Gestures.append(Novice_Gestures),0.5)
 
 
-np.random.seed(123)
-# Load pre-shuffled MNIST data into train and test sets
-(X_train, y_train), (X_test, y_test) = mnist.load_data()
-plt.ion()
-plt.imshow(X_train[0])
+
+
+
+
+
