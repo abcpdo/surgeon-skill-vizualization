@@ -54,8 +54,6 @@ def load_samples(filepath):
 	Output = []  #list of 2d arrays
 	Samples = load_file(filepath)
 	Two_D = np.empty((0,Samples.shape[1]))
-	
-	flag = True
 
 	for i in range(Samples.shape[0]):
 		if not np.isnan(Samples[i,0]):   #if the first element of each line is not NaN
@@ -64,16 +62,25 @@ def load_samples(filepath):
 			Output.append(Two_D) #stack on the 2d array
 			Two_D = np.empty((0,Samples.shape[1]))   #empty the 2d array
 			
-	return Output
+	return Output #list of arrays
 
 __location__ = os.path.realpath(
     os.path.join(os.getcwd(), os.path.dirname(__file__)))
+
 Expert_Gestures = load_samples(os.path.join(__location__, 'ExpertSamples.csv'))
 Novice_Gestures = load_samples(os.path.join(__location__, 'NoviceSamples.csv'))
-Mixed_Gestures = random.shuffle(Expert_Gestures.append(Novice_Gestures),0.5)
 
+Combined_Gestures = Expert_Gestures + Novice_Gestures
+Combined_Output = [1]*len(Expert_Gestures) + [0]*len(Novice_Gestures)
+print(Combined_Output)
 
+def random_seed():
+	return 0.2
 
+random.seed(5)
+random.shuffle(Combined_Gestures)
+random.shuffle(Combined_Output)
+print(Combined_Output)
 
 
 
