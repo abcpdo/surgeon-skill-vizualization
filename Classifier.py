@@ -2,49 +2,15 @@ from matplotlib import pyplot as plt
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense, Dropout, Activation, Flatten
+from tensorflow.keras.layers import Dense, Dropout, Activation, Flatten, LSTM
 from tensorflow.keras.layers import Convolution2D, MaxPooling2D
-#from tensorflow.keras.utils import np_utils
-#from tensorflow.keras.datasets import mnist
+from tensorflow.keras.utils import to_categorical
+import tensorflow.keras.backend as K
 import numpy as np
-import random
 import os
 from pandas import read_csv
 from pandas import DataFrame
 
-
-def series_to_supervised(data, n_in=1, n_out=1, dropnan=True):
-	"""
-	Frame a time series as a supervised learning dataset.
-	Arguments:
-		data: Sequence of observations as a list or NumPy array.
-		n_in: Number of lag observations as input (X).
-		n_out: Number of observations as output (y).
-		dropnan: Boolean whether or not to drop rows with NaN values.
-	Returns:
-		Pandas DataFrame of series framed for supervised learning.
-	"""
-	n_vars = 1 if type(data) is list else data.shape[1]
-	df = DataFrame(data)
-	cols, names = list(), list()
-	# input sequence (t-n, ... t-1)
-	for i in range(n_in, 0, -1):
-		cols.append(df.shift(i))
-		names += [('var%d(t-%d)' % (j+1, i)) for j in range(n_vars)]
-	# forecast sequence (t, t+1, ... t+n)
-	for i in range(0, n_out):
-		cols.append(df.shift(-i))
-		if i == 0:
-			names += [('var%d(t)' % (j+1)) for j in range(n_vars)]
-		else:
-			names += [('var%d(t+%d)' % (j+1, i)) for j in range(n_vars)]
-	# put it all together
-	agg = concat(cols, axis=1)
-	agg.columns = names
-	# drop rows with NaN values
-	if dropnan:
-		agg.dropna(inplace=True)
-	return agg
  
 def load_file(filepath):
 	dataframe = read_csv(filepath, header = None)
@@ -64,24 +30,86 @@ def load_samples(filepath):
 			
 	return Output #list of arrays
 
-__location__ = os.path.realpath(
-    os.path.join(os.getcwd(), os.path.dirname(__file__)))
+def load_data():
+	#load data from csv
+	__location__ = os.path.realpath(
+		os.path.join(os.getcwd(), os.path.dirname(__file__)))
 
-Expert_Gestures = load_samples(os.path.join(__location__, 'ExpertSamples.csv'))
-Novice_Gestures = load_samples(os.path.join(__location__, 'NoviceSamples.csv'))
+	Expert_Gestures = load_samples(os.path.join(__location__, 'ExpertSamples.csv'))
+	Novice_Gestures = load_samples(os.path.join(__location__, 'NoviceSamples.csv'))
+	#generate labels  1 = Expert 0 = Novice
+	Combined_y = [1]*len(Expert_Gestures) + [0]*len(Novice_Gestures)
 
-Combined_Gestures = Expert_Gestures + Novice_Gestures
-Combined_Output = [1]*len(Expert_Gestures) + [0]*len(Novice_Gestures)
-print(Combined_Output)
+	#get max step count
+	max_steps = 0
+	for i in range(len(Expert_Gestures)):
+		if Expert_Gestures[i].shape[0] > max_steps:
+			max_steps = Expert_Gestures[i].shape[0]
+	for i in range(len(Novice_Gestures)):
+		if Novice_Gestures[i].shape[0] > max_steps:
+			max_steps = Novice_Gestures[i].shape[0]
+				
+	#pad all arrays to max step count
+	for i in range(len(Expert_Gestures)):
+		pad = ((0,max_steps-Expert_Gestures[i].shape[0]),(0,0))
+		Expert_Gestures[i] = np.pad(Expert_Gestures[i],pad_width=pad,constant_values=0)
+	for i in range(len(Novice_Gestures)):
+		pad = ((0,max_steps-Novice_Gestures[i].shape[0]),(0,0))
+		Novice_Gestures[i] = np.pad(Novice_Gestures[i],pad_width=pad,constant_values=0)
 
-def random_seed():
-	return 0.2
+	#combine and stack into 3d array
+	Combined_X = Expert_Gestures + Novice_Gestures
+	Combined_X = np.stack(Combined_X)
+	#Combined_X = np.moveaxis(Combined_X,0,2) 
+	Combined_y = np.array(Combined_y)
+	Combined_y = to_categorical(Combined_y)
+	return Combined_X, Combined_y
 
-random.seed(5)
-random.shuffle(Combined_Gestures)
-random.shuffle(Combined_Output)
-print(Combined_Output)
+def shuffle_and_split(Combined_X,Combined_y):
+	#shuffle
+	np.random.seed(np.random.randint(0,1000))
+	np.random.shuffle(Combined_X)
+	np.random.shuffle(Combined_y)
+	#split
+	train_percent = 0.7
+	test_percent = 1-train_percent
+	train_X, test_X = np.split(Combined_X,[int(train_percent*Combined_X.shape[0])])
+	train_y,test_y = np.split(Combined_y,[int(train_percent*Combined_y.shape[0])])
+	return train_X,test_X,train_y,test_y
+
+def evaluate_model(trainX,trainy,testX,testy):
+	verbose, epochs, batch_size = 0, 15, 64
+	n_timesteps, n_features, n_outputs = trainX.shape[1], trainX.shape[2], trainy.shape[1]
+	model = Sequential()
+	model.add(LSTM(100, input_shape=(n_timesteps,n_features)))
+	model.add(Dropout(0.2))
+	model.add(Dense(100, activation='relu'))
+	model.add(Dense(n_outputs, activation='softmax'))
+	model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+	# fit network
+	model.fit(trainX, trainy, epochs=epochs, batch_size=batch_size, verbose=verbose)
+	# evaluate model
+	_, accuracy = model.evaluate(testX, testy, batch_size=batch_size, verbose=0)
+	return accuracy
+
+def summarize_results(scores):
+	print(scores)
+	m, s = np.mean(scores), np.std(scores)
+	print('Accuracy: %.3f%% (+/-%.3f)' % (m, s))
 
 
 
+######################################
+
+Combined_X,Combined_y = load_data()
+train_X,test_X,train_y,test_y = shuffle_and_split(Combined_X,Combined_y)
+# run experiment a few times
+scores = list()
+for r in range(10):
+	score = evaluate_model(train_X,train_y,test_X,test_y)
+	score = score * 100.0
+	print('>#%d: %.3f' % (r+1, score))
+	scores.append(score)
+
+summarize_results(scores)
 
