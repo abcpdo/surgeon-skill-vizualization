@@ -77,13 +77,13 @@ def shuffle_and_split(Combined_X,Combined_y):
 	train_y,test_y = np.split(Combined_y,[int(train_percent*Combined_y.shape[0])])
 	return train_X,test_X,train_y,test_y
 
-def evaluate_model(trainX,trainy,testX,testy):
-	verbose, epochs, batch_size = 0, 15, 64
+def evaluate_model(trainX,trainy,testX,testy,epoch,units=100):
+	verbose, epochs, batch_size = 0, epoch, 64
 	n_timesteps, n_features, n_outputs = trainX.shape[1], trainX.shape[2], trainy.shape[1]
 	model = Sequential()
-	model.add(LSTM(100, input_shape=(n_timesteps,n_features)))
-	model.add(Dropout(0.2))
-	model.add(Dense(100, activation='relu'))
+	model.add(LSTM(units, input_shape=(n_timesteps,n_features)))
+	model.add(Dropout(0.5))
+	model.add(Dense(units, activation='relu'))
 	model.add(Dense(n_outputs, activation='softmax'))
 	model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
 	# fit network
@@ -98,18 +98,23 @@ def summarize_results(scores):
 	print('Accuracy: %.3f%% (+/-%.3f)' % (m, s))
 
 
-
 ######################################
 
 Combined_X,Combined_y = load_data()
-train_X,test_X,train_y,test_y = shuffle_and_split(Combined_X,Combined_y)
 # run experiment a few times
 scores = list()
-for r in range(10):
-	score = evaluate_model(train_X,train_y,test_X,test_y)
-	score = score * 100.0
-	print('>#%d: %.3f' % (r+1, score))
-	scores.append(score)
+for i in range(5):
+	epoch = 1+i*4
+	for r in range(20):
+		train_X,test_X,train_y,test_y = shuffle_and_split(Combined_X,Combined_y)
+		score = evaluate_model(train_X,train_y,test_X,test_y,epoch,100)
+		score = score * 100.0
+		print('>#%d: %.3f' % (r+1, score))
+		scores.append((score,epoch))
 
-summarize_results(scores)
+scores = np.array(scores)
+summarize_results(scores[:,0].tolist())
+
+plt.scatter(scores[:,1].tolist(), scores[:,0].tolist())
+plt.show()
 
