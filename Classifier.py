@@ -10,7 +10,9 @@ import numpy as np
 import os
 from pandas import read_csv
 from pandas import DataFrame
-
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
  
 def load_file(filepath):
 	dataframe = read_csv(filepath, header = None)
