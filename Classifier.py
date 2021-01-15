@@ -113,7 +113,7 @@ for i in range(5):
 		score = score * 100.0
 		print('>#%d: %.3f' % (r+1, score))
 		scores.append((score,epoch))
-
+   
 scores = np.array(scores)
 summarize_results(scores[:,0].tolist())
 
