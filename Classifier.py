@@ -6,6 +6,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+import torch.autograd as autograd
 
 
 def load_samples(filepath):
@@ -97,14 +98,24 @@ def train_model(model, optimizer, train, epochs=20):
 class LSTM(nn.Module):
 	def __init__(self,input_dim,hidden_dim,label_dim):
 		super(LSTM, self).__init__()	
+
+		self.hidden_dim = hidden_dim
+		self.input_dim = input_dim
+
 		self.lstm = nn.LSTM(input_dim, hidden_dim)
-		self.FC = nn.Linear(hidden_dim, label_dim)
+		self.fully_connected = nn.Linear(hidden_dim, label_dim)
+		self.softmax = nn.LogSoftmax()
+
+	def init_hidden(self,batch_size):
+		return(autograd.Variable(torch.randn(1, batch_size, self.hidden_dim)), autograd.Variable(torch.randn(1, batch_size, self.hidden_dim)))
 
 
-	def forward(self,x):
-		x = x + 1
-
-		return x
+	def forward(self,batch):
+		self.hidden = self.init_hidden(batch.size(2))
+		output, (hidden_h,hidden_c) = self.lstm(batch,self.hidden)
+		output = self.fully_connected(output)
+		output = self.softmax(output)
+		return output
 
 
 
@@ -112,8 +123,8 @@ class LSTM(nn.Module):
 
 
 if __name__ == '__main__':
-	train_X,test_X,train_y,test_y = shuffle_and_split(create_dataset(),0.7)
-	net = LSTM(100,100,2)
+	train_X,test_X,train_y,test_y = shuffle_and_split(create_dataset(),0.7)  #[time, feature, sample]
+	net = LSTM(20,100,2,1)
 	optimizer = optim.SGD(net.parameters(),lr = 0.01, weight_decay=1e-4)
-	net = train_model
+	net = train_model(net,optimizer,train_X,train_y)
 
