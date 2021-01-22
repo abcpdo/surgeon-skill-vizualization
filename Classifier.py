@@ -3,10 +3,12 @@ import numpy as np
 import os 
 from pandas import read_csv
 import torch
+from torch._C import dtype
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import torch.autograd as autograd
+from tensorflow.keras.utils import to_categorical
 
 
 def load_samples(filepath):
@@ -69,62 +71,62 @@ def shuffle_and_split(Combined_X,Combined_y,ratio):
 	test_percent = 1-train_percent
 	train_X, test_X = np.split(Combined_X,[int(train_percent*Combined_X.shape[0])])
 	train_y,test_y = np.split(Combined_y,[int(train_percent*Combined_y.shape[0])])
-	return train_X,test_X,train_y,test_y
-
-def train_model(model, optimizer, train, epochs=20):
-	criterion = nn.MSELoss()
-	for epoch in range(epochs):
-		print("Epoch {}".format(epoch))
-        y_true = list()
-        y_pred = list()
-        total_loss = 0
-        for batch, targets, lengths, raw_data in create_dataset(train, x_to_ix, y_to_ix, bs=TRAIN_BATCH_SIZE):
-            batch, targets, lengths = sort_batch(batch, targets, lengths)
-            model.zero_grad()
-            pred, loss = apply(model, criterion, batch, targets, lengths)
-            loss.backward()
-            optimizer.step()
-            pred_idx = torch.max(pred, 1)[1]
-            y_true += list(targets.int())
-            y_pred += list(pred_idx.data.int())
-            total_loss += loss
-        acc = accuracy_score(y_true, y_pred)
-        val_loss, val_acc = evaluate_validation_set(model, dev, x_to_ix, y_to_ix, criterion)
-        print("Train loss: {} - acc: {} \nValidation loss: {} - acc: {}".format(list(total_loss.data.float())[0]/len(train), acc,
-                                                                                val_loss, val_acc))
-	return model
-
+	
+	return torch.from_numpy(train_X.astype(np.double)),torch.from_numpy(test_X.astype(np.double)),torch.from_numpy(train_y.astype(np.double)), torch.from_numpy(test_y.astype(np.double))
 
 class LSTM(nn.Module):
 	def __init__(self,input_dim,hidden_dim,label_dim):
 		super(LSTM, self).__init__()	
-
 		self.hidden_dim = hidden_dim
 		self.input_dim = input_dim
-
+		self.label_dim = label_dim
 		self.lstm = nn.LSTM(input_dim, hidden_dim)
 		self.fully_connected = nn.Linear(hidden_dim, label_dim)
 		self.softmax = nn.LogSoftmax()
 
-	def init_hidden(self,batch_size):
+	def init_hidden(self,batch_size):   #init as (1, timesteps, hidden_dim)
 		return(autograd.Variable(torch.randn(1, batch_size, self.hidden_dim)), autograd.Variable(torch.randn(1, batch_size, self.hidden_dim)))
 
-
 	def forward(self,batch):
-		self.hidden = self.init_hidden(batch.size(2))
-		output, (hidden_h,hidden_c) = self.lstm(batch,self.hidden)
+		self.hidden = self.init_hidden(batch.size(1))
+		output, hidden = self.lstm(batch,self.hidden)
 		output = self.fully_connected(output)
 		output = self.softmax(output)
 		return output
 
+def train_model(model, train_X, train_y, epochs=20):
+	optimizer = optim.SGD(model.parameters(),lr = 0.01, weight_decay=1e-4)
+	criterion = nn.CrossEntropyLoss()
 
+	for epoch in range(epochs):
+		print(epoch)
+		y_true = list()
+		y_pred = list()
+		total_loss = 0
+		running_loss = 0
+		model.zero_grad()
+		pred = model.forward(torch.autograd.Variable(train_X))
+		loss = criterion(pred,torch.autograd.Variable(train_y))
+		loss.backward()
+		optimizer.step()
+		#print(pred)
+		predicted = torch.max(pred, 1)[1]
+		#print(predicted)
+		y_true += list(targets.int())
+		y_pred += list(predicted.data.int())
+		total_loss += loss
+		acc = accuracy_score(y_true, y_pred)
+	return model
 
-
+def test_model(model, test_X, test_y):
+	model = model
+	return 0
 
 
 if __name__ == '__main__':
-	train_X,test_X,train_y,test_y = shuffle_and_split(create_dataset(),0.7)  #[time, feature, sample]
-	net = LSTM(20,100,2,1)
-	optimizer = optim.SGD(net.parameters(),lr = 0.01, weight_decay=1e-4)
-	net = train_model(net,optimizer,train_X,train_y)
+	Combined_X, Combined_y = create_dataset()
+	train_X,test_X,train_y,test_y = shuffle_and_split(Combined_X, Combined_y,0.7)  #[sample, time, feature]
+	net = LSTM(20,100,2)
+	net = train_model(net,train_X.float(),train_y.long())
+	net = test_model(net,test_X.float(),test_y.float())
 
