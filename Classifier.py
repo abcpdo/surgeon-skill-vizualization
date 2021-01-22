@@ -106,6 +106,8 @@ def train_model(model, train_X, train_y, epochs=20):
 		running_loss = 0
 		model.zero_grad()
 		pred = model.forward(torch.autograd.Variable(train_X))
+		print('SHAPE')
+		print(pred.shape)
 		loss = criterion(pred,torch.autograd.Variable(train_y))
 		loss.backward()
 		optimizer.step()
