@@ -58,7 +58,7 @@ def create_dataset():
 	Combined_X = np.stack(Combined_X)
 	#Combined_X = np.moveaxis(Combined_X,0,2) 
 	Combined_y = np.array(Combined_y)
-	Combined_y = to_categorical(Combined_y)
+	#Combined_y = to_categorical(Combined_y)
 	return Combined_X, Combined_y
 
 def shuffle_and_split(Combined_X,Combined_y,ratio):
@@ -97,27 +97,30 @@ class LSTM(nn.Module):
 def train_model(model, train_X, train_y, epochs=20):
 	optimizer = optim.SGD(model.parameters(),lr = 0.01, weight_decay=1e-4)
 	criterion = nn.CrossEntropyLoss()
+	total_loss = 0
 
 	for epoch in range(epochs):
-		print(epoch)
+		print("Epoch {}".format(epoch))
 		y_true = list()
 		y_pred = list()
-		total_loss = 0
+		
 		running_loss = 0
 		model.zero_grad()
-		pred = model.forward(torch.autograd.Variable(train_X))
-		print('SHAPE')
-		print(pred.shape)
-		loss = criterion(pred,torch.autograd.Variable(train_y))
+		pred = model.forward(train_X)
+		loss = criterion(pred,train_y)
 		loss.backward()
 		optimizer.step()
+
+		print(pred.shape)
+		print(train_y.shape)
+
 		#print(pred)
 		predicted = torch.max(pred, 1)[1]
 		#print(predicted)
-		y_true += list(targets.int())
+		y_true += list(predicted.data.int())
 		y_pred += list(predicted.data.int())
 		total_loss += loss
-		acc = accuracy_score(y_true, y_pred)
+		#acc = accuracy_score(y_true, y_pred)
 	return model
 
 def test_model(model, test_X, test_y):
