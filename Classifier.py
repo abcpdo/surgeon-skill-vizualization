@@ -82,56 +82,59 @@ class LSTM(nn.Module):
 		self.label_dim = label_dim
 		self.lstm = nn.LSTM(input_dim, hidden_dim,batch_first=True)
 		self.fully_connected = nn.Linear(hidden_dim, label_dim)
-		self.softmax = nn.LogSoftmax()
+		self.logsoftmax = nn.LogSoftmax()
 		
 
-	def init_hidden(self,batch_size,seq_len):   #init as (batch_size, timesteps, hidden_dim)
-		return(autograd.Variable(torch.randn(batch_size, seq_len, self.hidden_dim)), autograd.Variable(torch.randn(batch_size, seq_len, self.hidden_dim)))
+	def init_hidden(self,batch_size):   #init as (batch_size, timesteps, hidden_dim)
+		return(autograd.Variable(torch.randn(1, batch_size, self.hidden_dim)), autograd.Variable(torch.randn(1,batch_size, self.hidden_dim)))
 
 	def forward(self,batch,seq_len):
-		self.hidden = self.init_hidden(1,1)
+		self.hidden = self.init_hidden(batch.size(0))
 		_, hidden = self.lstm(batch,self.hidden)
 		output = self.fully_connected(hidden[0].squeeze())
-		output = self.softmax(output)
+		#output = self.logsoftmax(output)
 		return output
 
-def train_model(model, train_X, train_y, epochs=20):
-	optimizer = optim.SGD(model.parameters(),lr = 0.01, weight_decay=1e-4)
+def train_model(model, train_X, train_y, epochs=50):
+	optimizer = optim.SGD(model.parameters(),lr = 0.02, weight_decay=1e-4)
 	criterion = nn.CrossEntropyLoss()
 	total_loss = 0
 	torch.autograd.set_detect_anomaly(True)
+
 	for epoch in range(epochs):
 		print("Epoch {}".format(epoch))
 		y_true = list()
 		y_pred = list()
-		
-		running_loss = 0
-		for i in range(train_X.size(0)):   #feed each sequence one at a time
-			model.zero_grad()
-			print(train_X[i].unsqueeze(0).shape)    #inserted dim of 1 to 0th dimension
-			pred = model.forward(train_X[i].unsqueeze(0),train_X.size(1))
-			print(pred)
-			print(train_y[i])
-			loss = criterion(pred,train_y[i])
-			loss.backward()
-			optimizer.step()
-
-			print(loss.item())
-			print(pred.shape)
-			print(train_y.shape)
-
+		#for i in range(train_X.size(0)):   #feed each sequence one at a time
+		model.zero_grad()
+		#print(train_X[i].unsqueeze(0).shape)    #inserted dim of 1 to 0th dimension
+		pred = model.forward(train_X,train_X.size(1))
 		#print(pred)
-		predicted = torch.max(pred, 1)[1]
-		#print(predicted)
-		y_true += list(predicted.data.int())
-		y_pred += list(predicted.data.int())
-		total_loss += loss
+		#print(train_y[i].shape)
+		loss = criterion(pred,train_y)
+		loss.backward()
+		optimizer.step()
+		print(loss.item())
+		total_loss += loss.item()
+
+		predicted = torch.max(pred, 1)
+		print(predicted)
+		#y_true += list(predicted.data.int())
+		#y_pred += list(predicted.data.int())
 		#acc = accuracy_score(y_true, y_pred)
+	print("Finished Training")
 	return model
 
 def test_model(model, test_X, test_y):
-	model = model
-	return 0
+	pred = model(test_X)
+	_, predicted = torch.max(pred,1)
+	correct = 0
+	total = 0
+
+	print('Accuracy of the network on the test set: %d %%' % (
+    100 * correct / total))
+
+	return model
 
 
 if __name__ == '__main__':
@@ -139,5 +142,8 @@ if __name__ == '__main__':
 	train_X,test_X,train_y,test_y = shuffle_and_split(Combined_X, Combined_y,0.7)  #[sample, time, feature]
 	net = LSTM(20,100,2,train_X.size(0),train_X.size(1))
 	net = train_model(net,train_X.float(),train_y.long())
+	PATH = './LSTM.pth'
+	torch.save(net.state_dict(), PATH)
 	net = test_model(net,test_X.float(),test_y.float())
+
 
