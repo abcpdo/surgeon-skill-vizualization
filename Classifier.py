@@ -47,10 +47,10 @@ def create_dataset():
 				
 	#pad all arrays to max step count
 	for i in range(len(Expert_Gestures)):
-		pad = ((0,max_steps-Expert_Gestures[i].shape[0]),(0,0))
+		pad = ((max_steps-Expert_Gestures[i].shape[0],0),(0,0))
 		Expert_Gestures[i] = np.pad(Expert_Gestures[i],pad_width=pad,constant_values=0)
 	for i in range(len(Novice_Gestures)):
-		pad = ((0,max_steps-Novice_Gestures[i].shape[0]),(0,0))
+		pad = ((max_steps-Novice_Gestures[i].shape[0],0),(0,0))
 		Novice_Gestures[i] = np.pad(Novice_Gestures[i],pad_width=pad,constant_values=0)
 
 	#combine and stack into 3d array
@@ -58,7 +58,7 @@ def create_dataset():
 	Combined_X = np.stack(Combined_X)
 	#Combined_X = np.moveaxis(Combined_X,0,2) 
 	Combined_y = np.array(Combined_y)
-	#Combined_y = to_categorical(Combined_y)
+	Combined_y = to_categorical(Combined_y)
 	return Combined_X, Combined_y
 
 def shuffle_and_split(Combined_X,Combined_y,ratio):
@@ -82,7 +82,8 @@ class LSTM(nn.Module):
 		self.label_dim = label_dim
 		self.lstm = nn.LSTM(input_dim, hidden_dim,batch_first=True)
 		self.fully_connected = nn.Linear(hidden_dim, label_dim)
-		self.logsoftmax = nn.LogSoftmax()
+		#self.logsoftmax = nn.LogSoftmax()
+		self.sigmoid = nn.Sigmoid()
 		
 
 	def init_hidden(self,batch_size):   #init as (batch_size, timesteps, hidden_dim)
@@ -92,12 +93,13 @@ class LSTM(nn.Module):
 		self.hidden = self.init_hidden(batch.size(0))
 		_, hidden = self.lstm(batch,self.hidden)
 		output = self.fully_connected(hidden[0].squeeze())
-		#output = self.logsoftmax(output)
+		output = self.sigmoid(output)
+
 		return output
 
 def train_model(model, train_X, train_y, epochs=50):
 	optimizer = optim.SGD(model.parameters(),lr = 0.02, weight_decay=1e-4)
-	criterion = nn.CrossEntropyLoss()
+	criterion = nn.BCELoss()
 	total_loss = 0
 	torch.autograd.set_detect_anomaly(True)
 
@@ -117,8 +119,10 @@ def train_model(model, train_X, train_y, epochs=50):
 		print(loss.item())
 		total_loss += loss.item()
 
-		predicted = torch.max(pred, 1)
+		predicted = torch.max(pred, 1)[1]
+		
 		print(predicted)
+		print(torch.max(train_y,1)[1])
 		#y_true += list(predicted.data.int())
 		#y_pred += list(predicted.data.int())
 		#acc = accuracy_score(y_true, y_pred)
@@ -140,8 +144,8 @@ def test_model(model, test_X, test_y):
 if __name__ == '__main__':
 	Combined_X, Combined_y = create_dataset()
 	train_X,test_X,train_y,test_y = shuffle_and_split(Combined_X, Combined_y,0.7)  #[sample, time, feature]
-	net = LSTM(20,100,2,train_X.size(0),train_X.size(1))
-	net = train_model(net,train_X.float(),train_y.long())
+	net = LSTM(train_X.size(2),10,2,train_X.size(0),train_X.size(1))
+	net = train_model(net,train_X.float(),train_y.float())
 	PATH = './LSTM.pth'
 	torch.save(net.state_dict(), PATH)
 	net = test_model(net,test_X.float(),test_y.float())

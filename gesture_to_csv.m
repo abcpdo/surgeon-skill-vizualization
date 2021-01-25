@@ -36,7 +36,7 @@ for name = {meta(:).filename}
    i = i + 1;
 end
 %% Generate CSV for one gesture
-gesture_number = 4;
+gesture_number = 6;
 Gesture = 'G' + string(gesture_number);  %enter number of gesture
 
 Expert_Samples = [];  %Outputs
@@ -54,7 +54,7 @@ for i = 1:num_surgeons
       
           if(meta(i).experience == 'E')  % if expert save to the expert csv
               Expert_Samples = [Expert_Samples;Sample];
-              Expert_Samples = [Expert_Samples;nan(1,size(Expert_Samples,2))];
+              Expert_Samples = [Expert_Samples;nan(1,size(Expert_Samples,2))];  %delineate each sample
           else
               Novice_Samples = [Novice_Samples;Sample];
               Novice_Samples = [Novice_Samples;nan(1,size(Novice_Samples,2))];
