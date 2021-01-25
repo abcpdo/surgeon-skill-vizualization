@@ -58,7 +58,7 @@ def create_dataset():
 	Combined_X = np.stack(Combined_X)
 	#Combined_X = np.moveaxis(Combined_X,0,2) 
 	Combined_y = np.array(Combined_y)
-	Combined_y = to_categorical(Combined_y)
+	#Combined_y = to_categorical(Combined_y)
 	return Combined_X, Combined_y
 
 def shuffle_and_split(Combined_X,Combined_y,ratio):
@@ -80,7 +80,7 @@ class LSTM(nn.Module):
 		self.hidden_dim = hidden_dim
 		self.input_dim = input_dim
 		self.label_dim = label_dim
-		self.lstm = nn.LSTM(input_dim, hidden_dim)
+		self.lstm = nn.LSTM(input_dim, hidden_dim,batch_first=True)
 		self.fully_connected = nn.Linear(hidden_dim, label_dim)
 		self.softmax = nn.LogSoftmax()
 		
@@ -89,9 +89,9 @@ class LSTM(nn.Module):
 		return(autograd.Variable(torch.randn(batch_size, seq_len, self.hidden_dim)), autograd.Variable(torch.randn(batch_size, seq_len, self.hidden_dim)))
 
 	def forward(self,batch,seq_len):
-		self.hidden = self.init_hidden(1,seq_len)
-		output, hidden = self.lstm(batch,self.hidden)
-		output = self.fully_connected(output)
+		self.hidden = self.init_hidden(1,1)
+		_, hidden = self.lstm(batch,self.hidden)
+		output = self.fully_connected(hidden[0].squeeze())
 		output = self.softmax(output)
 		return output
 
@@ -106,12 +106,13 @@ def train_model(model, train_X, train_y, epochs=20):
 		y_pred = list()
 		
 		running_loss = 0
-		for i in range(train_X.size(0)):
-			print(i)
+		for i in range(train_X.size(0)):   #feed each sequence one at a time
 			model.zero_grad()
-			pred = model.forward(train_X[i],train_X.size(1))
-			print(pred.shape)
-			loss = criterion(pred,train_y[i,:])
+			print(train_X[i].unsqueeze(0).shape)    #inserted dim of 1 to 0th dimension
+			pred = model.forward(train_X[i].unsqueeze(0),train_X.size(1))
+			print(pred)
+			print(train_y[i])
+			loss = criterion(pred,train_y[i])
 			loss.backward()
 			optimizer.step()
 
@@ -136,7 +137,6 @@ def test_model(model, test_X, test_y):
 if __name__ == '__main__':
 	Combined_X, Combined_y = create_dataset()
 	train_X,test_X,train_y,test_y = shuffle_and_split(Combined_X, Combined_y,0.7)  #[sample, time, feature]
-	print(train_X.shape)
 	net = LSTM(20,100,2,train_X.size(0),train_X.size(1))
 	net = train_model(net,train_X.float(),train_y.long())
 	net = test_model(net,test_X.float(),test_y.float())
