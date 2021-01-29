@@ -1,6 +1,6 @@
 from matplotlib import pyplot as plt
 import numpy as np
-import os 
+import os
 from pandas import read_csv
 import torch
 from torch._C import dtype
@@ -9,12 +9,12 @@ import torch.nn.functional as F
 import torch.optim as optim
 import torch.autograd as autograd
 from tensorflow.keras.utils import to_categorical
-
+from tqdm import trange
 
 def load_samples(filepath):
 	Output = []  #list of 2d arrays
 	dataframe = read_csv(filepath, header = None)
-	Samples = dataframe.to_numpy() 
+	Samples = dataframe.to_numpy()
 	Two_D = np.empty((0,Samples.shape[1]))
 
 	for i in range(Samples.shape[0]):
@@ -23,7 +23,7 @@ def load_samples(filepath):
 		else:
 			Output.append(Two_D) #stack on the 2d array
 			Two_D = np.empty((0,Samples.shape[1]))   #empty the 2d array
-			
+
 	return Output #list of arrays
 
 def create_dataset():
@@ -44,7 +44,7 @@ def create_dataset():
 	for i in range(len(Novice_Gestures)):
 		if Novice_Gestures[i].shape[0] > max_steps:
 			max_steps = Novice_Gestures[i].shape[0]
-				
+
 	#pad all arrays to max step count
 	for i in range(len(Expert_Gestures)):
 		pad = ((max_steps-Expert_Gestures[i].shape[0],0),(0,0))
@@ -56,98 +56,133 @@ def create_dataset():
 	#combine and stack into 3d array
 	Combined_X = Expert_Gestures + Novice_Gestures
 	Combined_X = np.stack(Combined_X)
-	#Combined_X = np.moveaxis(Combined_X,0,2) 
 	Combined_y = np.array(Combined_y)
 	Combined_y = to_categorical(Combined_y)
 	return Combined_X, Combined_y
 
-def shuffle_and_split(Combined_X,Combined_y,ratio):
+def shuffle_and_split(Combined_X,Combined_y,train_ratio,shuffle_index):
+
 	#shuffle
-	np.random.seed(np.random.randint(0,1000))
+	np.random.seed(shuffle_index)
 	np.random.shuffle(Combined_X)
 	np.random.shuffle(Combined_y)
+
 	#split
-	train_percent = ratio
-	test_percent = 1-train_percent
-	train_X, test_X = np.split(Combined_X,[int(train_percent*Combined_X.shape[0])])
-	train_y,test_y = np.split(Combined_y,[int(train_percent*Combined_y.shape[0])])
-	
+	test_ratio = 1-train_ratio
+	train_X, test_X = np.split(Combined_X,[int(train_ratio*Combined_X.shape[0])])
+	train_y,test_y = np.split(Combined_y,[int(train_ratio*Combined_y.shape[0])])
+
 	return torch.from_numpy(train_X.astype(np.double)),torch.from_numpy(test_X.astype(np.double)),torch.from_numpy(train_y.astype(np.double)), torch.from_numpy(test_y.astype(np.double))
 
-class LSTM(nn.Module):
-	def __init__(self,input_dim,hidden_dim,label_dim,batch_size,seq_len):
-		super(LSTM, self).__init__()	
+
+class Classifier(nn.Module):
+	def __init__(self,input_dim,hidden_dim,layers,label_dim,p=0):
+		super(Classifier, self).__init__()
 		self.hidden_dim = hidden_dim
 		self.input_dim = input_dim
 		self.label_dim = label_dim
-		self.lstm = nn.LSTM(input_dim, hidden_dim,batch_first=True)
+		self.lstm = nn.LSTM(input_dim, hidden_dim, layers,batch_first=True)
 		self.fully_connected = nn.Linear(hidden_dim, label_dim)
 		#self.logsoftmax = nn.LogSoftmax()
 		self.sigmoid = nn.Sigmoid()
-		
+		self.dropout = nn.Dropout(p=p)
 
-	def init_hidden(self,batch_size):   #init as (batch_size, timesteps, hidden_dim)
-		return(autograd.Variable(torch.randn(1, batch_size, self.hidden_dim)), autograd.Variable(torch.randn(1,batch_size, self.hidden_dim)))
 
-	def forward(self,batch,seq_len):
-		self.hidden = self.init_hidden(batch.size(0))
-		_, hidden = self.lstm(batch,self.hidden)
-		output = self.fully_connected(hidden[0].squeeze())
-		output = self.sigmoid(output)
+	def init_hidden(self,batch_size,layers):   #init as (batch_size, timesteps, hidden_dim)
+		return(autograd.Variable(torch.randn(layers, batch_size, self.hidden_dim)), autograd.Variable(torch.randn(layers,batch_size, self.hidden_dim)))
+
+	def forward(self,batch,layers):
+		self.hidden = self.init_hidden(batch.size(0),layers)
+		_, last_hidden = self.lstm(batch,self.hidden)
+		output = self.dropout(last_hidden[0].squeeze())
+		output = self.fully_connected(output)
+		#output = self.sigmoid(output)
 
 		return output
 
-def train_model(model, train_X, train_y, epochs=50):
-	optimizer = optim.SGD(model.parameters(),lr = 0.02, weight_decay=1e-4)
-	criterion = nn.BCELoss()
+
+def train_model(model, train_X, train_y, epochs=20):
+	pos_weight = torch.tensor([(train_y[:,1]==1).sum()/(train_y[:,0]==1).sum(),(train_y[:,0]==1).sum()/(train_y[:,1]==1).sum()])     #negative/positive of class for pos_weight
+	print(pos_weight)
+	optimizer = optim.Adam(model.parameters(),lr = 0.001)
+	criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
 	total_loss = 0
 	torch.autograd.set_detect_anomaly(True)
 
 	for epoch in range(epochs):
-		print("Epoch {}".format(epoch))
-		y_true = list()
-		y_pred = list()
-		#for i in range(train_X.size(0)):   #feed each sequence one at a time
+		
+		#feed each sequence one at a time
+		# for i in trange(train_X.size(0)):  
+		# 	model.zero_grad()
+		# 	#print(train_X[i].unsqueeze(0).shape)    #inserted dim of 1 to 0th dimension
+		# 	pred = model.forward(train_X[i].unsqueeze(0),1)
+		# 	#print(pred)
+		# 	#print(train_y[i].shape)
+		# 	loss = criterion(pred,train_y[i])
+		# 	loss.backward()
+		# 	optimizer.step()
+		# 	#print(loss.item())
+		# 	total_loss += loss.item()
+		# 	#predicted = torch.max(pred, 1)[1]
+		#     #print(pred.detach())
+		# 	#print(train_y[i])
+
+		#feed entire batch all at once
 		model.zero_grad()
 		#print(train_X[i].unsqueeze(0).shape)    #inserted dim of 1 to 0th dimension
-		pred = model.forward(train_X,train_X.size(1))
+		pred = model.forward(train_X,1)
 		#print(pred)
 		#print(train_y[i].shape)
 		loss = criterion(pred,train_y)
 		loss.backward()
 		optimizer.step()
-		print(loss.item())
+		print("Epoch {} ".format(epoch) + "loss: {}".format(loss.item()))
 		total_loss += loss.item()
-
-		predicted = torch.max(pred, 1)[1]
 		
-		print(predicted)
-		print(torch.max(train_y,1)[1])
-		#y_true += list(predicted.data.int())
-		#y_pred += list(predicted.data.int())
-		#acc = accuracy_score(y_true, y_pred)
+		acc = model_accuracy(model,train_X,train_y,False)
+
 	print("Finished Training")
 	return model
 
-def test_model(model, test_X, test_y):
-	pred = model(test_X)
-	_, predicted = torch.max(pred,1)
-	correct = 0
-	total = 0
 
-	print('Accuracy of the network on the test set: %d %%' % (
-    100 * correct / total))
+def model_accuracy(model, X, y,Test_flag):
+	model.eval()
+	pred = model.forward(X,1)
+	predicted = torch.max(pred,1)[1]
+	actual = torch.max(y,1)[1]
+	correct = ((predicted == actual) == True).sum()
+	total = X.size(0)
 
-	return model
+	if Test_flag:
+		print('Accuracy of the network on the test set: %d %%' % (100 * correct / total))
+	else:
+		print('Accuracy of the network on the train set: %d %%' % (100 * correct / total))
+
+	model.train()
+	return correct/total
 
 
 if __name__ == '__main__':
-	Combined_X, Combined_y = create_dataset()
-	train_X,test_X,train_y,test_y = shuffle_and_split(Combined_X, Combined_y,0.7)  #[sample, time, feature]
-	net = LSTM(train_X.size(2),10,2,train_X.size(0),train_X.size(1))
-	net = train_model(net,train_X.float(),train_y.float())
+	accs = list()
+	for i in range(1):  #shuffle and run
+		#prepare data
+		Combined_X, Combined_y = create_dataset()
+		train_X,test_X,train_y,test_y = shuffle_and_split(Combined_X, Combined_y,0.7,i+10)  
+		#[sample, frame, feature] is the shape
+
+		#train and evaluate model
+		model = Classifier(train_X.size(2),50,1,2,0) #input dim, hidden dim, num_layers, output dim, dropout
+		
+		model = train_model(model,train_X.float(),train_y.float(),100) # model, X, y, epochs
+		acc = model_accuracy(model,test_X.float(),test_y.float(),True)
+		accs.append(acc.item())
+
+		# #number of params
+		# model_parameters = filter(lambda p: p.requires_grad, model.parameters())
+		# params = sum([np.prod(p.size()) for p in model_parameters])
+		# print(params)
+	
+	print(accs)
+	#save trained model
 	PATH = './LSTM.pth'
-	torch.save(net.state_dict(), PATH)
-	net = test_model(net,test_X.float(),test_y.float())
-
-
+	torch.save(model.state_dict(), PATH)
