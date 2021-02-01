@@ -12,7 +12,11 @@ from tensorflow.keras.utils import to_categorical
 from tqdm import trange
 
 def load_samples(filepath):
-	Output = []  #list of 2d arrays
+	"""
+		input: path to csv
+		output: list of 2d arrays of shape (sequence, feature)
+	"""
+	Output = [] 
 	dataframe = read_csv(filepath, header = None)
 	Samples = dataframe.to_numpy()
 	Two_D = np.empty((0,Samples.shape[1]))
@@ -24,15 +28,16 @@ def load_samples(filepath):
 			Output.append(Two_D) #stack on the 2d array
 			Two_D = np.empty((0,Samples.shape[1]))   #empty the 2d array
 
-	return Output #list of arrays
+	return Output 
 
-def create_dataset():
+def create_dataset(name1 = 'ExpertSamples.csv', name2 = 'NoviceSamples.csv'):
+	"""
+		output: array of dim (sample, sequence, feature)
+	"""
 	#load data from csv
-	__location__ = os.path.realpath(
-		os.path.join(os.getcwd(), os.path.dirname(__file__)))
-
-	Expert_Gestures = load_samples(os.path.join(__location__, 'ExpertSamples.csv'))
-	Novice_Gestures = load_samples(os.path.join(__location__, 'NoviceSamples.csv'))
+	__location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+	Expert_Gestures = load_samples(os.path.join(__location__, name1))
+	Novice_Gestures = load_samples(os.path.join(__location__, name2))
 	#generate labels  1 = Expert 0 = Novice
 	Combined_y = [1]*len(Expert_Gestures) + [0]*len(Novice_Gestures)
 
@@ -61,7 +66,10 @@ def create_dataset():
 	return Combined_X, Combined_y
 
 def shuffle_and_split(Combined_X,Combined_y,train_ratio,shuffle_index):
-
+	"""
+		input: 3d arrays, train/total ratio, shuffle index
+		output: tensors of train_X, train_y, test_X, test_y
+	"""
 	#shuffle
 	np.random.seed(shuffle_index)
 	np.random.shuffle(Combined_X)
@@ -102,15 +110,14 @@ class Classifier(nn.Module):
 
 
 def train_model(model, train_X, train_y, epochs=20):
-	pos_weight = torch.tensor([(train_y[:,1]==1).sum()/(train_y[:,0]==1).sum(),(train_y[:,0]==1).sum()/(train_y[:,1]==1).sum()])     #negative/positive of class for pos_weight
-	print(pos_weight)
+	pos_weight = torch.tensor([(train_y[:,1]==1).sum()/(train_y[:,0]==1).sum(),(train_y[:,0]==1).sum()/(train_y[:,1]==1).sum()])     #negative/positive of expert/novice class for pos_weight
+	#print(pos_weight)
 	optimizer = optim.Adam(model.parameters(),lr = 0.001)
 	criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
 	total_loss = 0
 	torch.autograd.set_detect_anomaly(True)
 
 	for epoch in range(epochs):
-		
 		#feed each sequence one at a time
 		# for i in trange(train_X.size(0)):  
 		# 	model.zero_grad()
@@ -139,16 +146,20 @@ def train_model(model, train_X, train_y, epochs=20):
 		print("Epoch {} ".format(epoch) + "loss: {}".format(loss.item()))
 		total_loss += loss.item()
 		
-		acc = model_accuracy(model,train_X,train_y,False)
+		global test_X
+		global test_y
 
-	print("Finished Training")
+		acc = model_accuracy(model,train_X,train_y,False)
+		acc = model_accuracy(model,test_X,test_y,True)
+
+	print("End Of Training")
 	return model
 
 
 def model_accuracy(model, X, y,Test_flag):
 	model.eval()
 	pred = model.forward(X,1)
-	predicted = torch.max(pred,1)[1]
+	predicted = torch.max(pred,1)[1] 
 	actual = torch.max(y,1)[1]
 	correct = ((predicted == actual) == True).sum()
 	total = X.size(0)
@@ -164,16 +175,14 @@ def model_accuracy(model, X, y,Test_flag):
 
 if __name__ == '__main__':
 	accs = list()
-	for i in range(1):  #shuffle and run
+	for i in range(1):  #reshuffle each loop
 		#prepare data
 		Combined_X, Combined_y = create_dataset()
 		train_X,test_X,train_y,test_y = shuffle_and_split(Combined_X, Combined_y,0.7,i+10)  
-		#[sample, frame, feature] is the shape
 
 		#train and evaluate model
-		model = Classifier(train_X.size(2),50,1,2,0) #input dim, hidden dim, num_layers, output dim, dropout
-		
-		model = train_model(model,train_X.float(),train_y.float(),100) # model, X, y, epochs
+		model = Classifier(train_X.size(2),1000,1,2,0) #input dim, hidden dim, num_layers, output dim, dropout ratio
+		model = train_model(model,train_X.float(),train_y.float(),1000) # model, X, y, epochs
 		acc = model_accuracy(model,test_X.float(),test_y.float(),True)
 		accs.append(acc.item())
 
@@ -184,5 +193,7 @@ if __name__ == '__main__':
 	
 	print(accs)
 	#save trained model
-	PATH = './LSTM.pth'
+	__location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+	PATH = __location__ + '/LSTM.pth'
+	print(__location__)
 	torch.save(model.state_dict(), PATH)
