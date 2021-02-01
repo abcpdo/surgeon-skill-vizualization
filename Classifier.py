@@ -137,10 +137,10 @@ def train_model(model, train_X, train_y, epochs=20):
 		#feed entire batch all at once
 		model.zero_grad()
 		#print(train_X[i].unsqueeze(0).shape)    #inserted dim of 1 to 0th dimension
-		pred = model.forward(train_X,1)
+		pred = model.forward(train_X.float(),1)
 		#print(pred)
 		#print(train_y[i].shape)
-		loss = criterion(pred,train_y)
+		loss = criterion(pred,train_y.float())
 		loss.backward()
 		optimizer.step()
 		print("Epoch {} ".format(epoch) + "loss: {}".format(loss.item()))
@@ -158,9 +158,9 @@ def train_model(model, train_X, train_y, epochs=20):
 
 def model_accuracy(model, X, y,Test_flag):
 	model.eval()
-	pred = model.forward(X,1)
+	pred = model.forward(X.float(),1)
 	predicted = torch.max(pred,1)[1] 
-	actual = torch.max(y,1)[1]
+	actual = torch.max(y.float(),1)[1]
 	correct = ((predicted == actual) == True).sum()
 	total = X.size(0)
 
@@ -174,24 +174,25 @@ def model_accuracy(model, X, y,Test_flag):
 
 
 if __name__ == '__main__':
-	accs = list()
+	accs = list() #list of accuracies
 	for i in range(1):  #reshuffle each loop
 		#prepare data
 		Combined_X, Combined_y = create_dataset()
 		train_X,test_X,train_y,test_y = shuffle_and_split(Combined_X, Combined_y,0.7,i+10)  
 
 		#train and evaluate model
-		model = Classifier(train_X.size(2),1000,1,2,0) #input dim, hidden dim, num_layers, output dim, dropout ratio
-		model = train_model(model,train_X.float(),train_y.float(),1000) # model, X, y, epochs
-		acc = model_accuracy(model,test_X.float(),test_y.float(),True)
+		model = Classifier(train_X.size(2),500,1,2,0) #input dim, hidden dim, num_layers, output dim, dropout ratio
+		model = train_model(model,train_X,train_y,100) # model, X, y, epochs
+		acc = model_accuracy(model,test_X,test_y,True)
 		accs.append(acc.item())
 
-		# #number of params
+		# #display number of params
 		# model_parameters = filter(lambda p: p.requires_grad, model.parameters())
 		# params = sum([np.prod(p.size()) for p in model_parameters])
 		# print(params)
 	
 	print(accs)
+
 	#save trained model
 	__location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
 	PATH = __location__ + '/LSTM.pth'
