@@ -72,8 +72,11 @@ def shuffle_and_split(Combined_X,Combined_y,train_ratio,shuffle_index):
 	"""
 	#shuffle
 	np.random.seed(shuffle_index)
-	np.random.shuffle(Combined_X)
-	np.random.shuffle(Combined_y)
+	shuffle_array = np.arange(Combined_X.shape[0])
+	np.random.shuffle(shuffle_array)
+	Combined_X = Combined_X[shuffle_array]
+	Combined_y = Combined_y[shuffle_array]
+	print(Combined_y)
 
 	#split
 	test_ratio = 1-train_ratio
@@ -181,7 +184,7 @@ if __name__ == '__main__':
 		train_X,test_X,train_y,test_y = shuffle_and_split(Combined_X, Combined_y,0.7,i+10)  
 
 		#train and evaluate model
-		model = Classifier(train_X.size(2),500,1,2,0) #input dim, hidden dim, num_layers, output dim, dropout ratio
+		model = Classifier(train_X.size(2),50,1,2,0) #input dim, hidden dim, num_layers, output dim, dropout ratio
 		model = train_model(model,train_X,train_y,100) # model, X, y, epochs
 		acc = model_accuracy(model,test_X,test_y,True)
 		accs.append(acc.item())
@@ -196,5 +199,4 @@ if __name__ == '__main__':
 	#save trained model
 	__location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
 	PATH = __location__ + '/LSTM.pth'
-	print(__location__)
 	torch.save(model.state_dict(), PATH)
