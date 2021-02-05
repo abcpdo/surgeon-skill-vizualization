@@ -55,10 +55,10 @@ def create_dataset(name1 = 'ExpertSamplesG4.csv', name2 = 'NoviceSamplesG4.csv')
 
 	#pad all arrays to max step count
 	for i in range(len(Expert_Gestures)):
-		pad = ((max_steps-Expert_Gestures[i].shape[0],0),(0,0))
+		pad = ((0,max_steps-Expert_Gestures[i].shape[0]),(0,0))
 		Expert_Gestures[i] = np.pad(Expert_Gestures[i],pad_width=pad,constant_values=0)
 	for i in range(len(Novice_Gestures)):
-		pad = ((max_steps-Novice_Gestures[i].shape[0],0),(0,0))
+		pad = ((0,max_steps-Novice_Gestures[i].shape[0]),(0,0))
 		Novice_Gestures[i] = np.pad(Novice_Gestures[i],pad_width=pad,constant_values=0)
 
 	#combine and stack into 3d array
@@ -185,7 +185,7 @@ def model_accuracy(model, X, y,Test_flag):
 
 if __name__ == '__main__':
 	epochs = 200
-	reshuffle = 3
+	reshuffle = 5
 	hidden_dim = 50
 
 	accs = list() #list of final accuracies
@@ -199,7 +199,7 @@ if __name__ == '__main__':
 
 		#train and evaluate model
 		model = Classifier(train_X.size(2),hidden_dim,1,2,0) #input dim, hidden dim, num_layers, output dim, dropout ratio
-		model,train_accs,test_accs = train_model(model,train_X,train_y,epochs) # model, X, y, epochs
+		model,train_accs,test_accs = train_model(model,train_X[:,0:200,:],train_y,epochs) # model, X, y, epochs
 		acc = model_accuracy(model,test_X,test_y,True)
 		accs.append(acc.item())
 		all_accs.append([train_accs,test_accs])
