@@ -36,7 +36,7 @@ for name = {meta(:).filename}
    i = i + 1;
 end
 %% Generate CSV for one gesture
-gesture_number = 6;
+gesture_number = 2;
 Gesture = 'G' + string(gesture_number);  %enter number of gesture
 
 Expert_Samples = [];  %Outputs
@@ -47,12 +47,21 @@ for i = 1:num_surgeons
        Transcription_i = T(i);   %Get surgeon's transcription file
        index = find(strcmp(Transcription_i(:,3), Gesture));   % Get frame stamps for the gesture
        
-       for j = 1:size(index,1)   %for every frame pair
+       for j = 1:size(index,1)   %for every frame pair get the sequence between
           frame_start = cell2mat(Transcription_i(index(j),1));
           frame_end = cell2mat(Transcription_i(index(j),2));
-          Sample = [Kinematics_i(frame_start:frame_end,1:3),Kinematics_i(frame_start:frame_end,13:19),Kinematics_i(frame_start:frame_end,20:22),Kinematics_i(frame_start:frame_end,32:38)];
-      
-          if(meta(i).experience == 'E')  % if expert save to the expert csv
+          
+          % convert ROT to euler angles (better ML feature?)
+          EUL = [];
+          for k = frame_start:frame_end
+            eul = rotm2eul([Kinematics_i(k,4:6);Kinematics_i(k,7:9);Kinematics_i(k,10:12)]);
+            EUL = [EUL;eul];
+          end
+          
+          %only looking at the right hand
+          Sample = [Kinematics_i(frame_start:frame_end,1:3),EUL,Kinematics_i(frame_start:frame_end,13:18)];
+          %right hand: Kinematics_i(frame_start:frame_end,20:22),Kinematics_i(frame_start:frame_end,32:38)
+          if(meta(i).experience == 'E')     %append sequence to output with a NaN row at the end
               Expert_Samples = [Expert_Samples;Sample];
               Expert_Samples = [Expert_Samples;nan(1,size(Expert_Samples,2))];  %delineate each sample
           else
@@ -62,5 +71,5 @@ for i = 1:num_surgeons
        end
 end
 
-writematrix(Expert_Samples,'ExpertSamples.csv')
-writematrix(Novice_Samples,'NoviceSamples.csv')
+writematrix(Expert_Samples,'ExpertSamples' + Gesture + '.csv')
+writematrix(Novice_Samples,'NoviceSamples' + Gesture + '.csv')

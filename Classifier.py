@@ -33,7 +33,7 @@ def load_samples(filepath):
 
 	return Output
 
-def create_dataset(name1 = 'ExpertSamples.csv', name2 = 'NoviceSamples.csv'):
+def create_dataset(name1 = 'ExpertSamplesG4.csv', name2 = 'NoviceSamplesG4.csv'):
 	"""
 		output: array of dim (sample, sequence, feature)
 	"""
@@ -118,6 +118,8 @@ def train_model(model, train_X, train_y, epochs=20):
 	pos_weight = torch.tensor([(train_y[:,1]==1).sum()/(train_y[:,0]==1).sum(),(train_y[:,0]==1).sum()/(train_y[:,1]==1).sum()])     #negative/positive of expert/novice class for pos_weight
 	#print(pos_weight)
 	optimizer = optim.Adam(model.parameters(),lr = 0.001)
+	# print("Pos_Weight:")
+	# print(pos_weight)
 	criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
 	total_loss = 0
 	torch.autograd.set_detect_anomaly(True)
@@ -182,16 +184,18 @@ def model_accuracy(model, X, y,Test_flag):
 
 
 if __name__ == '__main__':
-	epochs = 250
-	reshuffle = 5
+	epochs = 200
+	reshuffle = 3
 	hidden_dim = 50
 
 	accs = list() #list of final accuracies
 	all_accs = list()
 	for i in trange(reshuffle):  #reshuffle each loop
 		#prepare data
-		Combined_X, Combined_y = create_dataset()
+		Combined_X, Combined_y = create_dataset('ExpertSamplesG2.csv','NoviceSamplesG2.csv')
 		train_X,test_X,train_y,test_y = shuffle_and_split(Combined_X, Combined_y,0.7,i+52)
+		# print("\nTrain Shape:")
+		# print(train_X.size())
 
 		#train and evaluate model
 		model = Classifier(train_X.size(2),hidden_dim,1,2,0) #input dim, hidden dim, num_layers, output dim, dropout ratio
