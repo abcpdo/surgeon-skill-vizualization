@@ -36,7 +36,7 @@ for name = {meta(:).filename}
    i = i + 1;
 end
 %% Generate CSV for one gesture
-gesture_number = 2;
+gesture_number = 6;
 Gesture = 'G' + string(gesture_number);  %enter number of gesture
 
 Expert_Samples = [];  %Outputs

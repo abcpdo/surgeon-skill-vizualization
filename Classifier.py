@@ -55,10 +55,10 @@ def create_dataset(name1 = 'ExpertSamplesG4.csv', name2 = 'NoviceSamplesG4.csv')
 
 	#pad all arrays to max step count
 	for i in range(len(Expert_Gestures)):
-		pad = ((0,max_steps-Expert_Gestures[i].shape[0]),(0,0))
+		pad = ((max_steps-Expert_Gestures[i].shape[0],0),(0,0))
 		Expert_Gestures[i] = np.pad(Expert_Gestures[i],pad_width=pad,constant_values=0)
 	for i in range(len(Novice_Gestures)):
-		pad = ((0,max_steps-Novice_Gestures[i].shape[0]),(0,0))
+		pad = ((max_steps-Novice_Gestures[i].shape[0],0),(0,0))
 		Novice_Gestures[i] = np.pad(Novice_Gestures[i],pad_width=pad,constant_values=0)
 
 	#combine and stack into 3d array
@@ -117,7 +117,7 @@ class Classifier(nn.Module):
 def train_model(model, train_X, train_y, epochs=20):
 	pos_weight = torch.tensor([(train_y[:,1]==1).sum()/(train_y[:,0]==1).sum(),(train_y[:,0]==1).sum()/(train_y[:,1]==1).sum()])     #negative/positive of expert/novice class for pos_weight
 	#print(pos_weight)
-	optimizer = optim.Adam(model.parameters(),lr = 0.001)
+	optimizer = optim.Adam(model.parameters(),lr = 0.002)
 	# print("Pos_Weight:")
 	# print(pos_weight)
 	criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
@@ -184,23 +184,23 @@ def model_accuracy(model, X, y,Test_flag):
 
 
 if __name__ == '__main__':
-	epochs = 200
+	epochs = 400
 	reshuffle = 5
-	hidden_dim = 50
+	hidden_dim = 30
 
 	accs = list() #list of final accuracies
 	all_accs = list()
 	for i in trange(reshuffle):  #reshuffle each loop
 		#prepare data
-		Combined_X, Combined_y = create_dataset('ExpertSamplesG2.csv','NoviceSamplesG2.csv')
-		train_X,test_X,train_y,test_y = shuffle_and_split(Combined_X, Combined_y,0.7,i+52)
+		Combined_X, Combined_y = create_dataset('ExpertSamplesG4.csv','NoviceSamplesG4.csv')
+		train_X,test_X,train_y,test_y = shuffle_and_split(Combined_X, Combined_y,0.7,i+55)
 		# print("\nTrain Shape:")
-		# print(train_X.size())
+		print(train_X.size())
 
 		#train and evaluate model
 		model = Classifier(train_X.size(2),hidden_dim,1,2,0) #input dim, hidden dim, num_layers, output dim, dropout ratio
-		model,train_accs,test_accs = train_model(model,train_X[:,0:200,:],train_y,epochs) # model, X, y, epochs
-		acc = model_accuracy(model,test_X,test_y,True)
+		model,train_accs,test_accs = train_model(model,train_X,train_y,epochs) # model, X, y, epochs
+		acc = model_accuracy(model,test_X[:,100:200,:],test_y,True)
 		accs.append(acc.item())
 		all_accs.append([train_accs,test_accs])
 		
@@ -214,11 +214,9 @@ if __name__ == '__main__':
 
 	plt.xlabel("Epochs")
 	plt.ylabel("Accuracy (%)")
-
 	all_accs = np.array(all_accs)
-	for i in range(len(all_accs)):
-		plt.plot(np.transpose(all_accs[i,0]),label='Train', color = (0.5+np.random.random()*0.5,np.random.random()*0.1,np.random.random()*0.1))
-		plt.plot(np.transpose(all_accs[i,1]),label='Test', color = (np.random.random()*0.1,0.5+np.random.random()*0.5,np.random.random()*0.1))
+	plt.plot(np.transpose(np.mean(all_accs[:,0],axis = 0)),label='Train', color = (0.5+np.random.random()*0.5,np.random.random()*0.1,np.random.random()*0.1))
+	plt.plot(np.transpose(np.mean(all_accs[:,1],axis = 0)),label='Test', color = (np.random.random()*0.1,0.5+np.random.random()*0.5,np.random.random()*0.1))
 	handles, labels = plt.gca().get_legend_handles_labels()
 	newLabels, newHandles = [], []
 	for handle, label in zip(handles, labels):
