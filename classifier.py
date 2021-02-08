@@ -10,7 +10,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 import torch.autograd as autograd
 from tqdm import trange
-import statistics as st
+
 
 
 class LSTMClassifier(nn.Module):
@@ -38,12 +38,9 @@ class LSTMClassifier(nn.Module):
 
 def train_model(model, train_dataloader, test_dataloader, train_dataset, test_dataset, epochs=20):
     #train_dataloader
-    #pos_weight = torch.tensor([(train_y[:, 1] == 1).sum()/(train_y[:, 0] == 1).sum(), (train_y[:, 0] == 1).sum()/(train_y[:, 1] == 1).sum()])     # negative/positive of expert/novice class for pos_weight
-    # print(pos_weight)
+    pos_weight = torch.tensor([(train_dataset[:]['y'][:,1] == 1).sum()/(train_dataset[:]['y'][:,0] == 1).sum(), (train_dataset[:]['y'][:,0] == 1).sum()/(train_dataset[:]['y'][:,1] == 1).sum()])     # negative/positive of expert/novice class for pos_weight
     optimizer = optim.Adam(model.parameters(), lr=0.002)
-    # print("Pos_Weight:")
-    # print(pos_weight)
-    criterion = nn.BCEWithLogitsLoss()
+    criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
     total_loss = 0
     torch.autograd.set_detect_anomaly(True)
 
@@ -86,58 +83,3 @@ def model_accuracy(model, X, y,Test_flag):
 
     model.train()
     return (correct/total)*100
-
-
-if __name__ == '__main__':
-    epochs = 400
-    reshuffle = 5
-    hidden_dim = 30
-
-    accs = list() #list of final accuracies
-    all_accs = list()
-
-    for i in trange(reshuffle):  #reshuffle each loop
-        #prepare data
-        Combined_X, Combined_y = create_dataset('ExpertSamplesG4.csv','NoviceSamplesG4.csv')
-        train_X,test_X,train_y,test_y = shuffle_and_split(Combined_X, Combined_y,0.7,i+55)
-        # print("\nTrain Shape:")
-        print(train_X.size())
-
-        #train and evaluate model
-        model = LSTMClassifier(train_X.size(2),hidden_dim,1,2,0) #input dim, hidden dim, num_layers, output dim, dropout ratio
-        model,train_accs,test_accs = train_model(model,train_X,train_y,epochs) # model, X, y, epochs
-        acc = model_accuracy(model,test_X[:,100:200,:],test_y,True)
-        accs.append(acc.item())
-        all_accs.append([train_accs,test_accs])
-
-        # #display number of params
-        # model_parameters = filter(lambda p: p.requires_grad, model.parameters())
-        # params = sum([np.prod(p.size()) for p in model_parameters])
-        # print(params)
-    print(accs)
-    print("Mean: {}".format(st.mean(accs)))
-    # print("stddev: {}".format(st.stdev(accs)))
-
-    plt.xlabel("Epochs")
-    plt.ylabel("Accuracy (%)")
-    all_accs = np.array(all_accs)
-    plt.plot(np.transpose(np.mean(all_accs[:,0],axis = 0)),label='Train', color = (0.5+np.random.random()*0.5,np.random.random()*0.1,np.random.random()*0.1))
-    plt.plot(np.transpose(np.mean(all_accs[:,1],axis = 0)),label='Test', color = (np.random.random()*0.1,0.5+np.random.random()*0.5,np.random.random()*0.1))
-    handles, labels = plt.gca().get_legend_handles_labels()
-    newLabels, newHandles = [], []
-    for handle, label in zip(handles, labels):
-        if label not in newLabels:
-            newLabels.append(label)
-            newHandles.append(handle)
-    plt.legend(newHandles, newLabels)
-    plt.title('LSTM Expert/Novice Classifier')
-    axis = plt.gca()
-    axis.set_ylim(axis.get_ylim()[::-1])
-    plt.show()
-
-    # save trained model
-    __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
-    PATH = __location__ + '/LSTM.pth'
-    torch.save(model.state_dict(), PATH)
-    PATH = __location__ + '/fig.png'
-    plt.savefig(PATH,dpi=250)

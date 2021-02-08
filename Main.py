@@ -1,17 +1,17 @@
-from classifier import *
+from classifier import LSTMClassifier, train_model, model_accuracy
 #from predictor import *
-from dataset import *
+from dataset import JigsawsDataset
 from torch.utils.data import DataLoader, random_split
 from matplotlib import pyplot as plt
 from tqdm import trange
+import numpy as np
+import torch
+import statistics as st
 pretrained = False
 
 # Create dataloaders 
 combined_dataset = JigsawsDataset(['NoviceSamplesG4.csv','ExpertSamplesG4.csv'])
 combined_dataloader = DataLoader(combined_dataset, batch_size=10, shuffle=True, num_workers=0)
-train_dataset, test_dataset = random_split(combined_dataset, [int(combined_dataset.__len__()*0.7), int(combined_dataset.__len__())-int(combined_dataset.__len__()*0.7)], generator=torch.Generator().manual_seed(42))
-train_dataloader = DataLoader(train_dataset, batch_size=train_dataset.__len__, shuffle=True, num_workers=0)
-test_dataloader = DataLoader(test_dataset, batch_size=test_dataset.__len__, shuffle=True, num_workers=0)
 novice_dataset = JigsawsDataset(['NoviceSamplesG4.csv'])
 novice_dataloader = DataLoader(novice_dataset, batch_size=10, shuffle=True, num_workers=0)
 expert_dataset = JigsawsDataset(['ExpertSamplesG4.csv'])
@@ -21,13 +21,22 @@ expert_dataloader = DataLoader(expert_dataset, batch_size=10, shuffle=True, num_
 # train classifier network
 if(not pretrained):
     all_accs = list()
-    for i in trange(1):
-        model = LSTMClassifier(train_dataset[:]['X'].size(2), 30) #input dim, hidden dim, num_layers, output dim, dropout ratio
-        model, train_accs, test_accs = train_model(model,train_dataloader, test_dataloader, train_dataset, test_dataset, 20) # model, train loader, test loader, train set, test set, epochs
+    end_accs = list()
+
+    for i in trange(5): # random cross validation
+        train_dataset, test_dataset = random_split(combined_dataset, [int(combined_dataset.__len__()*0.7), int(combined_dataset.__len__())-int(combined_dataset.__len__()*0.7)], generator=torch.Generator().manual_seed(i+10))
+        train_dataloader = DataLoader(train_dataset, batch_size=train_dataset.__len__(), shuffle=False, num_workers=0)
+        test_dataloader = DataLoader(test_dataset, batch_size=test_dataset.__len__(), shuffle=False, num_workers=0)
+
+        model = LSTMClassifier(train_dataset[:]['X'].size(2), 30) #input dim, hidden dim
+        model, train_accs, test_accs = train_model(model, train_dataloader, test_dataloader, train_dataset, test_dataset, 100) # model, train loader, test loader, train set, test set, epochs
         acc = model_accuracy(model,test_dataset[:]['X'],test_dataset[:]['y'],True)
-        print(acc)
+        end_accs.append(acc.item())
         all_accs.append([train_accs, test_accs])
     
+    print(end_accs)
+    print("Mean: {}".format(st.stdev(end_accs)))
+
     plt.xlabel("Epochs")
     plt.ylabel("Accuracy (%)")
     all_accs = np.array(all_accs)
