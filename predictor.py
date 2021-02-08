@@ -61,9 +61,9 @@ def train_model(model, dataloader, epochs=100):
 def predict(model,initial,window=40,future=60):
     current = initial
     predicted = torch.empty((0, initial.size(1)))
-    for i in range(future/3):
+    for i in range(int(future/3)):
         input = current[-window:,:]  # seq, features
         new = model.forward(input.unsqueeze(0))
-        current = torch.cat((current, new),0)
-        predicted = torch.cat((predicted, new),0)
+        current = torch.cat((current, new.squeeze(0)),0)
+        predicted = torch.cat((predicted, new.squeeze(0)),0)
     return predicted

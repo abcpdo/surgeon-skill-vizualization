@@ -9,8 +9,8 @@ import torch
 import torch.nn as nn
 import os
 classifier_pretrained = True
-predictor_novice_pretrained = False
-predictor_expert_pretrained = False
+predictor_novice_pretrained = True
+predictor_expert_pretrained = True
 __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
 
 
@@ -54,7 +54,7 @@ else:
 
 
 # Sequence Prediction
-predict_test_index = 13
+predict_test_index = 14
 sliding_window = 50
 future_window = 20
 train_epochs = 40
