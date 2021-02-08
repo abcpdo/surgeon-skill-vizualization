@@ -12,9 +12,9 @@ import torch.autograd as autograd
 from tqdm import trange
 import statistics as st
 
-class LSTMClassifier(nn.Module):
+class LSTMPredictor(nn.Module):
     def __init__(self, input_dim, hidden_dim, layers=1, label_dim=2, p=0):
-        super(LSTMClassifier, self).__init__()
+        super(LSTMPredictor, self).__init__()
         self.hidden_dim = hidden_dim
         self.input_dim = input_dim
         self.label_dim = label_dim
@@ -64,42 +64,3 @@ def train_model(model, train_dataloader, test_dataloader, train_dataset, test_da
 
     # print("End Of Training")
     return model, train_accs, test_accs
-
-def plot(end_accs,all_accs):
-    print(end_accs)
-    if len(end_accs) > 1:
-        print("Mean: {}".format(st.stdev(end_accs)))
-    plt.xlabel("Epochs")
-    plt.ylabel("Accuracy (%)")
-    all_accs = np.array(all_accs)
-    plt.plot(np.transpose(np.mean(all_accs[:,0], axis = 0)),label='Train', color = (0.5+np.random.random()*0.5,np.random.random()*0.1,np.random.random()*0.1))
-    plt.plot(np.transpose(np.mean(all_accs[:,1], axis = 0)),label='Test', color = (np.random.random()*0.1,0.5+np.random.random()*0.5,np.random.random()*0.1))
-    handles, labels = plt.gca().get_legend_handles_labels()
-    newLabels, newHandles = [], []
-    for handle, label in zip(handles, labels):
-        if label not in newLabels:
-            newLabels.append(label)
-            newHandles.append(handle)
-    plt.legend(newHandles, newLabels)
-    plt.title('LSTM Expert/Novice Classifier')
-    axis = plt.gca()
-    axis.set_ylim(axis.get_ylim()[::-1])
-    plt.show()
-
-def model_accuracy(model, X, y, Test_flag):
-    model.eval()
-    pred = model.forward(X.float(), 1)
-    Sigmoid = nn.Sigmoid()
-    pred = Sigmoid(pred)
-    predicted = torch.max(pred, 1)[1]
-    actual = torch.max(y.float(), 1)[1]
-    correct = ((predicted == actual) == True).sum()
-    total = X.size(0)
-
-    # if Test_flag:
-    # 	print('Accuracy of the network on the test set: %d %%' % (100 * correct / total))
-    # else:
-    # 	print('Accuracy of the network on the train set: %d %%' % (100 * correct / total))
-
-    model.train()
-    return (correct/total)*100

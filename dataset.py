@@ -73,4 +73,28 @@ class JigsawsDataset(Dataset):
 
         sample = {'X': self.X[idx, :, :], 'y': self.y[idx, :]}
         return sample
+
+class PredictionDataset(Dataset):
+    def __init__(self, tensor, window):       
+        self.Sequences = generate_sequences(tensor, window)
+
+    def generate_sequences(self, tensor, window):
+        Seq = list()
+        length = tensor.size(1)
+        for i in range(tensor.size(0)):
+            for j in range(length-window):
+                if tensor[i,j:j+window,:].float().sum().data[0] != 0:
+                    train = tensor[i, j:j+window,:]
+                    label = tensor[i, j+window:j+window+1,:]
+                    Seq.append((train, label))
+        return Seq
+
+    def __len__(self):
+        return len(self.Sequences)
+
+    def __getitem__(self, idx):
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+        sample = {'X': self.Sequences[idx][0], 'y': self.Sequences[idx][1]}
+        return sample
       
