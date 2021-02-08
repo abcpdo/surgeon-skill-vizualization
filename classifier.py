@@ -3,96 +3,19 @@ import numpy as np
 import os
 from numpy.core.fromnumeric import mean
 from numpy.lib.polynomial import poly
-from pandas import read_csv
 import torch
 from torch._C import dtype
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import torch.autograd as autograd
-from tensorflow.keras.utils import to_categorical
 from tqdm import trange
 import statistics as st
 
 
-def load_samples(filepath):
-    """
-    input: path to csv
-    output: list of 2d arrays of shape (sequence, feature)
-    """
-    Output = []
-    dataframe = read_csv(filepath, header=None)
-    Samples = dataframe.to_numpy()
-    Two_D = np.empty((0, Samples.shape[1]))
-    for i in range(Samples.shape[0]):
-        if not np.isnan(Samples[i, 0]):  # if the first element of each line is not NaN
-            Two_D = np.vstack([Two_D, Samples[i, :]])
-        else:
-            Output.append(Two_D)  # stack on the 2d array into 3d array
-            Two_D = np.empty((0, Samples.shape[1])) 
-
-    return Output
-
-
-def create_dataset(name1='ExpertSamplesG4.csv', name2='NoviceSamplesG4.csv'):
-    """
-    input: names of csvs
-    output: array of dim (sample, sequence, feature)
-    """
-    # load data from csv
-    __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
-    Expert_Gestures = load_samples(os.path.join(__location__, name1))
-    Novice_Gestures = load_samples(os.path.join(__location__, name2))
-    # generate labels  1 = Expert 0 = Novice
-    Combined_y = [1]*len(Expert_Gestures) + [0]*len(Novice_Gestures)
-
-    # get max time step count
-    max_steps = 0
-    for i in range(len(Expert_Gestures)):
-        if Expert_Gestures[i].shape[0] > max_steps:
-            max_steps = Expert_Gestures[i].shape[0]
-    for i in range(len(Novice_Gestures)):
-        if Novice_Gestures[i].shape[0] > max_steps:
-            max_steps = Novice_Gestures[i].shape[0]
-
-    # pad all arrays to max step count
-    for i in range(len(Expert_Gestures)):
-        pad = ((max_steps-Expert_Gestures[i].shape[0],0),(0,0))
-        Expert_Gestures[i] = np.pad(Expert_Gestures[i],pad_width=pad,constant_values=0)
-    for i in range(len(Novice_Gestures)):
-        pad = ((max_steps-Novice_Gestures[i].shape[0],0),(0,0))
-        Novice_Gestures[i] = np.pad(Novice_Gestures[i],pad_width=pad,constant_values=0)
-
-    # combine and stack into 3d array
-    Combined_X = Expert_Gestures + Novice_Gestures
-    Combined_X = np.stack(Combined_X)
-    Combined_y = np.array(Combined_y)
-    Combined_y = to_categorical(Combined_y)
-    return Combined_X, Combined_y
-
-
-def shuffle_and_split(Combined_X, Combined_y, train_ratio, shuffle_index):
-    """
-    input: 3d arrays, train/total ratio, shuffle index
-    output: tensors of train_X, train_y, test_X, test_y
-    """
-    # shuffle
-    np.random.seed(shuffle_index)
-    shuffle_array = np.arange(Combined_X.shape[0])
-    np.random.shuffle(shuffle_array)
-    Combined_X = Combined_X[shuffle_array]
-    Combined_y = Combined_y[shuffle_array]
-
-    # split
-    train_X, test_X = np.split(Combined_X, [int(train_ratio*Combined_X.shape[0])])
-    train_y, test_y = np.split(Combined_y, [int(train_ratio*Combined_y.shape[0])])
-
-    return torch.from_numpy(train_X.astype(np.double)),torch.from_numpy(test_X.astype(np.double)),torch.from_numpy(train_y.astype(np.double)), torch.from_numpy(test_y.astype(np.double))
-
-
-class Classifier(nn.Module):
-    def __init__(self, input_dim, hidden_dim, layers, label_dim, p=0):
-        super(Classifier, self).__init__()
+class LSTMClassifier(nn.Module):
+    def __init__(self, input_dim, hidden_dim, layers=1, label_dim=2, p=0):
+        super(LSTMClassifier, self).__init__()
         self.hidden_dim = hidden_dim
         self.input_dim = input_dim
         self.label_dim = label_dim
@@ -102,7 +25,7 @@ class Classifier(nn.Module):
         self.sigmoid = nn.Sigmoid()
         self.dropout = nn.Dropout(p=p)
 
-    def init_hidden(self, batch_size,layers):   #init as (batch_size, timesteps, hidden_dim)
+    def init_hidden(self, batch_size, layers):   #init as (batch_size, timesteps, hidden_dim)
         return(autograd.Variable(torch.randn(layers, batch_size, self.hidden_dim)), autograd.Variable(torch.randn(layers, batch_size, self.hidden_dim)))
 
     def forward(self, batch, layers):
@@ -110,7 +33,6 @@ class Classifier(nn.Module):
         hidden, last_hidden = self.lstm(batch, self.hidden)
         output = self.dropout(last_hidden[0].squeeze())
         output = self.fully_connected(output)
-        # output = self.sigmoid(output)
 
         return output
 
@@ -175,6 +97,7 @@ if __name__ == '__main__':
 
     accs = list() #list of final accuracies
     all_accs = list()
+
     for i in trange(reshuffle):  #reshuffle each loop
         #prepare data
         Combined_X, Combined_y = create_dataset('ExpertSamplesG4.csv','NoviceSamplesG4.csv')
@@ -183,7 +106,7 @@ if __name__ == '__main__':
         print(train_X.size())
 
         #train and evaluate model
-        model = Classifier(train_X.size(2),hidden_dim,1,2,0) #input dim, hidden dim, num_layers, output dim, dropout ratio
+        model = LSTMClassifier(train_X.size(2),hidden_dim,1,2,0) #input dim, hidden dim, num_layers, output dim, dropout ratio
         model,train_accs,test_accs = train_model(model,train_X,train_y,epochs) # model, X, y, epochs
         acc = model_accuracy(model,test_X[:,100:200,:],test_y,True)
         accs.append(acc.item())
