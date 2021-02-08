@@ -19,7 +19,7 @@ class LSTMClassifier(nn.Module):
         self.hidden_dim = hidden_dim
         self.input_dim = input_dim
         self.label_dim = label_dim
-        self.lstm = nn.LSTM(input_dim, hidden_dim, layers,batch_first=True)
+        self.lstm = nn.LSTM(input_dim, hidden_dim, layers, batch_first=True)
         self.fully_connected = nn.Linear(hidden_dim, label_dim)
         # self.logsoftmax = nn.LogSoftmax()
         self.sigmoid = nn.Sigmoid()
@@ -30,20 +30,20 @@ class LSTMClassifier(nn.Module):
 
     def forward(self, batch, layers):
         self.hidden = self.init_hidden(batch.size(0), layers)
-        hidden, last_hidden = self.lstm(batch, self.hidden)
+        hidden, last_hidden = self.lstm(batch.float(), self.hidden)
         output = self.dropout(last_hidden[0].squeeze())
         output = self.fully_connected(output)
-
         return output
 
 
-def train_model(model, train_X, train_y, epochs=20):
-    pos_weight = torch.tensor([(train_y[:, 1] == 1).sum()/(train_y[:, 0] == 1).sum(), (train_y[:, 0] == 1).sum()/(train_y[:, 1] == 1).sum()])     # negative/positive of expert/novice class for pos_weight
+def train_model(model, train_dataloader, test_dataloader, train_dataset, test_dataset, epochs=20):
+    #train_dataloader
+    #pos_weight = torch.tensor([(train_y[:, 1] == 1).sum()/(train_y[:, 0] == 1).sum(), (train_y[:, 0] == 1).sum()/(train_y[:, 1] == 1).sum()])     # negative/positive of expert/novice class for pos_weight
     # print(pos_weight)
     optimizer = optim.Adam(model.parameters(), lr=0.002)
     # print("Pos_Weight:")
     # print(pos_weight)
-    criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+    criterion = nn.BCEWithLogitsLoss()
     total_loss = 0
     torch.autograd.set_detect_anomaly(True)
 
@@ -52,22 +52,20 @@ def train_model(model, train_X, train_y, epochs=20):
 
     for epoch in trange(epochs):
         # feed entire batch all at once
-        model.zero_grad()
-        # print(train_X[i].unsqueeze(0).shape)    #inserted dim of 1 to 0th dimension
-        pred = model.forward(train_X.float(),1)
-        # print(pred)
-        # print(train_y[i].shape)
-        loss = criterion(pred,train_y.float())
-        loss.backward()
-        optimizer.step()
-        # print("Epoch {} ".format(epoch) + "loss: {}".format(loss.item()))
-        total_loss += loss.item()
+        for i_batch, batch in enumerate(train_dataloader):
+            model.zero_grad()
+            # print(train_X[i].unsqueeze(0).shape)    #inserted dim of 1 to 0th dimension
+            pred = model.forward(batch['X'], 1)
+            # print(pred)
+            # print(train_y[i].shape)
+            loss = criterion(pred, batch['y'])
+            loss.backward()
+            optimizer.step()
+            # print("Epoch {} ".format(epoch) + "loss: {}".format(loss.item()))
+            total_loss += loss.item()
 
-        global test_X
-        global test_y
-
-        train_accs.append(model_accuracy(model, train_X, train_y, False))
-        test_accs.append(model_accuracy(model, test_X, test_y, True))
+        train_accs.append(model_accuracy(model, train_dataset[:]['X'], train_dataset[:]['y'], False))
+        test_accs.append(model_accuracy(model, test_dataset[:]['X'], test_dataset[:]['y'], True))
 
     # print("End Of Training")
     return model, train_accs, test_accs
@@ -78,7 +76,7 @@ def model_accuracy(model, X, y,Test_flag):
     pred = model.forward(X.float(), 1)
     predicted = torch.max(pred, 1)[1]
     actual = torch.max(y.float(), 1)[1]
-    correct = ((predicted == actual) is True).sum()
+    correct = ((predicted == actual) == True).sum()
     total = X.size(0)
 
     # if Test_flag:
@@ -136,7 +134,6 @@ if __name__ == '__main__':
     axis = plt.gca()
     axis.set_ylim(axis.get_ylim()[::-1])
     plt.show()
-
 
     # save trained model
     __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
