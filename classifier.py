@@ -13,7 +13,7 @@ from tqdm import trange
 import statistics as st
 
 class LSTMClassifier(nn.Module):
-    def __init__(self, input_dim, hidden_dim, layers=1, label_dim=2, p=0):
+    def __init__(self, input_dim, hidden_dim=30, layers=1, label_dim=2, p=0):
         super(LSTMClassifier, self).__init__()
         self.hidden_dim = hidden_dim
         self.input_dim = input_dim
@@ -23,7 +23,7 @@ class LSTMClassifier(nn.Module):
         self.sigmoid = nn.Sigmoid()
         self.dropout = nn.Dropout(p=p)
 
-    def init_hidden(self, batch_size, layers):   #init as (batch_size, timesteps, hidden_dim)
+    def init_hidden(self, batch_size, layers): 
         return(autograd.Variable(torch.randn(layers, batch_size, self.hidden_dim)), autograd.Variable(torch.randn(layers, batch_size, self.hidden_dim)))
 
     def forward(self, batch, layers):
@@ -68,7 +68,7 @@ def train_model(model, train_dataloader, test_dataloader, train_dataset, test_da
 def plot(end_accs,all_accs):
     print(end_accs)
     if len(end_accs) > 1:
-        print("Mean: {}".format(st.stdev(end_accs)))
+        print("Stdev: {}".format(st.stdev(end_accs)))
     plt.xlabel("Epochs")
     plt.ylabel("Accuracy (%)")
     all_accs = np.array(all_accs)
@@ -95,11 +95,6 @@ def model_accuracy(model, X, y, Test_flag):
     actual = torch.max(y.float(), 1)[1]
     correct = ((predicted == actual) == True).sum()
     total = X.size(0)
-
-    # if Test_flag:
-    # 	print('Accuracy of the network on the test set: %d %%' % (100 * correct / total))
-    # else:
-    # 	print('Accuracy of the network on the train set: %d %%' % (100 * correct / total))
 
     model.train()
     return (correct/total)*100

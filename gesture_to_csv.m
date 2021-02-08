@@ -44,6 +44,12 @@ Novice_Samples = [];
 
 for i = 1:num_surgeons
        Kinematics_i = K(i);   %Get surgeon's kinematics file
+       
+       %smooth out velocities
+       for z = 13:18
+           Kinematics_i(:,z) = smoothdata(Kinematics_i(:,z));
+       end
+       
        Transcription_i = T(i);   %Get surgeon's transcription file
        index = find(strcmp(Transcription_i(:,3), Gesture));   % Get frame stamps for the gesture
        
@@ -51,14 +57,14 @@ for i = 1:num_surgeons
           frame_start = cell2mat(Transcription_i(index(j),1));
           frame_end = cell2mat(Transcription_i(index(j),2));
           
-          % convert ROT to euler angles (better ML feature?)
+          % convert ROT to euler angles (better feature?)
           EUL = [];
           for k = frame_start:frame_end
             eul = rotm2eul([Kinematics_i(k,4:6);Kinematics_i(k,7:9);Kinematics_i(k,10:12)]);
             EUL = [EUL;eul];
           end
           
-          %only looking at the right hand
+          %only looking at the left hand
           Sample = [Kinematics_i(frame_start:frame_end,1:3),EUL,Kinematics_i(frame_start:frame_end,13:18)];
           %right hand: Kinematics_i(frame_start:frame_end,20:22),Kinematics_i(frame_start:frame_end,32:38)
           if(meta(i).experience == 'E')     %append sequence to output with a NaN row at the end
