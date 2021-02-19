@@ -60,6 +60,7 @@ future_window = 20
 train_epochs = 40
 hidden = 100
 offset = 20
+stride = 1
 
 # novice predictor
 predict_novice_dataset = PredictionDataset(novice_dataset[:]['X'],sliding_window)
