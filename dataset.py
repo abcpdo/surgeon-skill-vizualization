@@ -76,19 +76,23 @@ class JigsawsDataset(Dataset):
 
 
 class PredictionDataset(Dataset):
-    def __init__(self, tensor, window):       
-        self.X, self.y = self.generate_sequences(tensor, window)
+    def __init__(self, tensor, window, stride):       
+        self.X, self.y = self.generate_sequences(tensor, window, stride)
         self.y = torch.squeeze(self.y)
 
-    def generate_sequences(self, tensor, window):
+    def generate_sequences(self, tensor, window, stride):
+        print(tensor.size())
+        torch.unsqueeze(tensor, 0)
+        print(tensor.size())
+
         X = list()
         y = list()
         length = tensor.size(1)
         for i in range(tensor.size(0)):
-            for j in range(length-window-2):
-                if tensor[i,j,:].float().sum().item() != 0:
-                    train = tensor[i, j:j+window,:]
-                    label = tensor[i, j+window:j+window+3,:]
+            for j in range(length-window-stride-1):
+                if tensor[i,j,:].float().sum().item() != 0:  #only do the non-zero portions
+                    train = tensor[i, j:j+window, :]              
+                    label = tensor[i, j+window:j+window+stride, :]
                     X.append(train)
                     y.append(label)
         X = np.stack(X)

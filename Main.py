@@ -9,8 +9,8 @@ import torch
 import torch.nn as nn
 import os
 classifier_pretrained = True
-predictor_novice_pretrained = True
-predictor_expert_pretrained = True
+predictor_novice_pretrained = False
+predictor_expert_pretrained = False
 __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
 
 
@@ -51,7 +51,7 @@ else:
     pred = model.forward(test_novice_sample.unsqueeze(0), 1)
     Sigmoid = nn.Sigmoid()
     pred = torch.max(Sigmoid(pred.detach()), 0)[1]
-
+    #classifier.model_accuracy()
 
 # Sequence Prediction
 predict_test_index = 14
@@ -60,14 +60,15 @@ future_window = 20
 train_epochs = 40
 hidden = 100
 offset = 20
-stride = 1
+stride = 3
 
 # novice predictor
-predict_novice_dataset = PredictionDataset(novice_dataset[:]['X'],sliding_window)
+predict_novice_dataset = PredictionDataset(novice_dataset[0]['X'], sliding_window, stride)
 predict_novice_dataloader = DataLoader(predict_novice_dataset, batch_size=3000, shuffle=True, num_workers=0)
+
 if not predictor_novice_pretrained:
     predict_novice_model = predictor.LSTMPredictor(predict_novice_dataset[:]['X'].size(2),hidden_dim=hidden,output_dim=predict_novice_dataset[:]['X'].size(2))
-    predict_novice_model = predictor.train_model(predict_novice_model,predict_novice_dataloader,epochs=train_epochs)
+    predict_novice_model = predictor.train_model(predict_novice_model,predict_novice_dataloader,epochs=train_epochs,stride=stride)
     PATH = __location__ + '/Predictor_N.pth'
     torch.save(predict_novice_model.state_dict(), PATH)
 else:
@@ -78,15 +79,15 @@ else:
     input = novice_dataset[predict_test_index]['X']
     input = input[input.sum(dim=1)!=0]
     input = input[offset:sliding_window+offset,:]
-    future_N = predictor.predict(predict_novice_model, input, window=sliding_window,future=future_window)
+    future_N = predictor.predict(predict_novice_model, input, window = sliding_window,future=future_window,stride=stride)
 
 # expert predictor
-predict_expert_dataset = PredictionDataset(expert_dataset[:]['X'],sliding_window)
+predict_expert_dataset = PredictionDataset(expert_dataset[0]['X'], sliding_window, stride)
 predict_expert_dataloader = DataLoader(predict_expert_dataset, batch_size=3000, shuffle=True, num_workers=0)
 
 if not predictor_novice_pretrained:
     predict_expert_model = predictor.LSTMPredictor(predict_expert_dataset[:]['X'].size(2),hidden_dim=hidden,output_dim=predict_expert_dataset[:]['X'].size(2))
-    predict_expert_model = predictor.train_model(predict_expert_model,predict_expert_dataloader,epochs=train_epochs)
+    predict_expert_model = predictor.train_model(predict_expert_model,predict_expert_dataloader,epochs=train_epochs,stride=stride)
     PATH = __location__ + '/Predictor_E.pth'
     torch.save(predict_expert_model.state_dict(), PATH)
 else:
@@ -97,48 +98,49 @@ else:
     input = novice_dataset[predict_test_index]['X']
     input_seq = input[input.sum(dim=1)!=0]
     input = input_seq[offset:sliding_window+offset,:]
-    future_E = predictor.predict(predict_expert_model, input, window=sliding_window,future=future_window)
+    future_E = predictor.predict(predict_expert_model, input, window=sliding_window,future=future_window,stride=stride)
 
 # plotting
-fig = plt.figure(figsize=plt.figaspect(0.5))
-plt.title('Predicting Gesture') 
-ax = fig.add_subplot(1,2,1, projection='3d')
-xline1 = input[:,0].detach().numpy()
-yline1 = input[:,1].detach().numpy()
-zline1 = input[:,2].detach().numpy()
-ax.plot3D(xline1, yline1, zline1, 'gray',label="Input")
-xline2 = future_N[:,0].detach().numpy()
-yline2 = future_N[:,1].detach().numpy()
-zline2 = future_N[:,2].detach().numpy()
-ax.plot3D(xline2, yline2, zline2, 'red',label="Novice")
-xline3 = future_E[:,0].detach().numpy()
-yline3 = future_E[:,1].detach().numpy()
-zline3 = future_E[:,2].detach().numpy()
-ax.plot3D(xline3, yline3, zline3, 'green',label="Expert")
-xline4 = input_seq[offset+sliding_window:offset+sliding_window+future_window,0].detach().numpy()
-yline4 = input_seq[offset+sliding_window:offset+sliding_window+future_window,1].detach().numpy()
-zline4 = input_seq[offset+sliding_window:offset+sliding_window+future_window,2].detach().numpy()
-ax.plot3D(xline4, yline4, zline4, 'blue',label="Ground Truth")
-ax.legend()
-ax.title.set_text('Translation')
+if predictor_novice_pretrained and predictor_expert_pretrained:
+    fig = plt.figure(figsize=plt.figaspect(0.5))
+    plt.title('Predicting Gesture') 
+    ax = fig.add_subplot(1,2,1, projection='3d')
+    xline1 = input[:, 0].detach().numpy()
+    yline1 = input[:, 1].detach().numpy()
+    zline1 = input[:, 2].detach().numpy()
+    ax.plot3D(xline1, yline1, zline1, 'gray',label="Input")
+    xline2 = future_N[:,0].detach().numpy()
+    yline2 = future_N[:,1].detach().numpy()
+    zline2 = future_N[:,2].detach().numpy()
+    ax.plot3D(xline2, yline2, zline2, 'red',label="Novice")
+    xline3 = future_E[:,0].detach().numpy()
+    yline3 = future_E[:,1].detach().numpy()
+    zline3 = future_E[:,2].detach().numpy()
+    ax.plot3D(xline3, yline3, zline3, 'green',label="Expert")
+    xline4 = input_seq[offset+sliding_window:offset+sliding_window+future_window,0].detach().numpy()
+    yline4 = input_seq[offset+sliding_window:offset+sliding_window+future_window,1].detach().numpy()
+    zline4 = input_seq[offset+sliding_window:offset+sliding_window+future_window,2].detach().numpy()
+    ax.plot3D(xline4, yline4, zline4, 'blue',label="Ground Truth")
+    ax.legend()
+    ax.title.set_text('Translation')
 
-ax2 = fig.add_subplot(1,2,2, projection='3d')
-xline1 = input[:,3].detach().numpy()
-yline1 = input[:,4].detach().numpy()
-zline1 = input[:,5].detach().numpy()
-ax2.plot3D(xline1, yline1, zline1, 'gray',label="Input")
-xline2 = future_N[:,3].detach().numpy()
-yline2 = future_N[:,4].detach().numpy()
-zline2 = future_N[:,5].detach().numpy()
-ax2.plot3D(xline2, yline2, zline2, 'red',label="Novice")
-xline3 = future_E[:,3].detach().numpy()
-yline3 = future_E[:,4].detach().numpy()
-zline3 = future_E[:,5].detach().numpy()
-ax2.plot3D(xline3, yline3, zline3, 'green',label="Expert")
-xline4 = input_seq[offset+sliding_window:offset+sliding_window+future_window,3].detach().numpy()
-yline4 = input_seq[offset+sliding_window:offset+sliding_window+future_window,4].detach().numpy()
-zline4 = input_seq[offset+sliding_window:offset+sliding_window+future_window,5].detach().numpy()
-ax2.plot3D(xline4, yline4, zline4, 'blue',label="Ground Truth")
-ax2.legend()
-ax2.title.set_text('Rotation (Euler Angles)')
-plt.show()
+    ax2 = fig.add_subplot(1,2,2, projection='3d')
+    xline1 = input[:,3].detach().numpy()
+    yline1 = input[:,4].detach().numpy()
+    zline1 = input[:,5].detach().numpy()
+    ax2.plot3D(xline1, yline1, zline1, 'gray',label="Input")
+    xline2 = future_N[:,3].detach().numpy()
+    yline2 = future_N[:,4].detach().numpy()
+    zline2 = future_N[:,5].detach().numpy()
+    ax2.plot3D(xline2, yline2, zline2, 'red',label="Novice")
+    xline3 = future_E[:,3].detach().numpy()
+    yline3 = future_E[:,4].detach().numpy()
+    zline3 = future_E[:,5].detach().numpy()
+    ax2.plot3D(xline3, yline3, zline3, 'green',label="Expert")
+    xline4 = input_seq[offset+sliding_window:offset+sliding_window+future_window,3].detach().numpy()
+    yline4 = input_seq[offset+sliding_window:offset+sliding_window+future_window,4].detach().numpy()
+    zline4 = input_seq[offset+sliding_window:offset+sliding_window+future_window,5].detach().numpy()
+    ax2.plot3D(xline4, yline4, zline4, 'blue',label="Ground Truth")
+    ax2.legend()
+    ax2.title.set_text('Rotation (Euler Angles)')
+    plt.show()

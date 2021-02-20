@@ -25,15 +25,15 @@ class LSTMPredictor(nn.Module):
     def init_hidden(self, batch_size, layers):  
         return(autograd.Variable(torch.randn(layers, batch_size, self.hidden_dim)), autograd.Variable(torch.randn(layers, batch_size, self.hidden_dim)))
 
-    def forward(self, batch):
+    def forward(self, batch, stride):
         self.hidden = self.init_hidden(batch.size(0), 1)
         hidden, last_hidden = self.lstm(batch.float(), self.hidden)
         hidden = torch.Tensor(hidden)
-        pred = self.fully_connected(hidden[:,-3:,:])
+        pred = self.fully_connected(hidden[:,-stride:,:])
         return pred
 
 
-def train_model(model, dataloader, epochs=100):
+def train_model(model, dataloader, epochs=100, stride=1):
     model.train()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
     criterion = nn.MSELoss()
@@ -46,7 +46,7 @@ def train_model(model, dataloader, epochs=100):
         # feed entire batch all at once
         for i_batch, batch in enumerate(dataloader):
             model.zero_grad()
-            pred = model.forward(batch['X'])
+            pred = model.forward(batch['X'], stride)
             loss = criterion(pred, batch['y'].float())
             loss.backward()
             optimizer.step()
@@ -58,12 +58,12 @@ def train_model(model, dataloader, epochs=100):
     # print("End Of Training")
     return model #, train_accs, test_accs
 
-def predict(model,initial,window=40,future=60):
+def predict(model,initial,window=40,future=60,stride = 1):
     current = initial
     predicted = torch.empty((0, initial.size(1)))
-    for i in range(int(future/3)):
+    for i in range(int(future/stride)):
         input = current[-window:,:]  # seq, features
-        new = model.forward(input.unsqueeze(0))
+        new = model.forward(input.unsqueeze(0),stride)
         current = torch.cat((current, new.squeeze(0)),0)
         predicted = torch.cat((predicted, new.squeeze(0)),0)
     return predicted
