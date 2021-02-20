@@ -12,6 +12,7 @@ import torch.autograd as autograd
 from tqdm import trange
 import statistics as st
 
+
 class LSTMClassifier(nn.Module):
     def __init__(self, input_dim, hidden_dim=30, layers=1, label_dim=2, p=0):
         super(LSTMClassifier, self).__init__()

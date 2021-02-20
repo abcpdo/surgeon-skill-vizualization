@@ -81,8 +81,10 @@ class PredictionDataset(Dataset):
         self.y = torch.squeeze(self.y)
 
     def generate_sequences(self, tensor, window, stride):
+        tensor = torch.tensor(tensor.clone().detach())
         print(tensor.size())
-        torch.unsqueeze(tensor, 0)
+        print(tensor)
+        tensor.unsqueeze(0)
         print(tensor.size())
 
         X = list()
