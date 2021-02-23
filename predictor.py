@@ -23,7 +23,7 @@ class LSTMPredictor(nn.Module):
         self.dropout = nn.Dropout(p=p)
 
     def init_hidden(self, batch_size, layers):  
-        return(autograd.Variable(torch.randn(layers, batch_size, self.hidden_dim)), autograd.Variable(torch.randn(layers, batch_size, self.hidden_dim)))
+        return (autograd.Variable(torch.randn(layers, batch_size, self.hidden_dim)), autograd.Variable(torch.randn(layers, batch_size, self.hidden_dim)))
 
     def forward(self, batch, stride):
         self.hidden = self.init_hidden(batch.size(0), 1)
@@ -46,10 +46,11 @@ def train_model(model, dataloader, epochs=100, stride=1):
         # feed entire batch all at once
         for i_batch, batch in enumerate(dataloader):
             model.zero_grad()
-            pred = model.forward(batch['X'], stride)
-            loss = criterion(pred, batch['y'].float())
+            pred = model.forward(batch['X'].cuda(), stride)
+            loss = criterion(pred.squeeze(), batch['y'].squeeze().float().cuda())
             loss.backward()
             optimizer.step()
+            del batch
             print("Epoch {} ".format(epoch) + "loss: {}".format(loss.item()))
 
         # train_accs.append(model_accuracy(model, train_dataset[:]['X'], train_dataset[:]['y'], False))
@@ -58,12 +59,12 @@ def train_model(model, dataloader, epochs=100, stride=1):
     # print("End Of Training")
     return model #, train_accs, test_accs
 
-def predict(model,initial,window=40,future=60,stride = 1):
+def predict(model, initial, window=40, future=60, stride = 1):
     current = initial
     predicted = torch.empty((0, initial.size(1)))
     for i in range(int(future/stride)):
-        input = current[-window:,:]  # seq, features
-        new = model.forward(input.unsqueeze(0),stride)
-        current = torch.cat((current, new.squeeze(0)),0)
-        predicted = torch.cat((predicted, new.squeeze(0)),0)
+        input = current[-window:, :]  # seq, features
+        next_frame = model.forward(input.unsqueeze(0),stride)
+        current = torch.cat((current, next_frame.squeeze(0)),0)
+        predicted = torch.cat((predicted, next_frame.squeeze(0)),0)
     return predicted

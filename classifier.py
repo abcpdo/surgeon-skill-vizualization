@@ -38,7 +38,7 @@ class LSTMClassifier(nn.Module):
 def train_model(model, train_dataloader, test_dataloader, train_dataset, test_dataset, epochs=20):
     #train_dataloader
     pos_weight = torch.tensor([(train_dataset[:]['y'][:,1] == 1).sum()/(train_dataset[:]['y'][:,0] == 1).sum(), (train_dataset[:]['y'][:, 0] == 1).sum()/(train_dataset[:]['y'][:,1] == 1).sum()])     # negative/positive of expert/novice class for pos_weight
-    optimizer = optim.Adam(model.parameters(), lr=0.002)
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
     criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
     total_loss = 0
     torch.autograd.set_detect_anomaly(True)

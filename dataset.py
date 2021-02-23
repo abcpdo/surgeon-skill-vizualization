@@ -4,13 +4,22 @@ from tensorflow.keras.utils import to_categorical
 import numpy as np
 import os
 from pandas import read_csv
+import torch
 
+
+def scale_data(array, indicies, ratio):
+    print('scaling indicies {}'.format(indicies) + ' by {}'.format(ratio))
+    for sample in range(array.shape[0]):
+        for frame in range(array.shape[1]):
+            for idx, index in enumerate(indicies):
+                array[sample, frame, index] = array[sample, frame, index]*ratio
+    return array
 
 class JigsawsDataset(Dataset):
-    def __init__(self, csv_list):       
-        self.X, self.y = self.generate_tensors(csv_list)
+    def __init__(self, csv_list,ratio = 1):       
+        self.X, self.y = self.generate_tensors(csv_list,ratio)
 
-    def generate_tensors(self, csv_list):
+    def generate_tensors(self, csv_list,ratio):
         """
         input: names of csvs
         output: 3d array of dim (sample, sequence, feature)
@@ -42,6 +51,7 @@ class JigsawsDataset(Dataset):
         for i in range(len(Gestures)):
             Combined_X = Combined_X + Gestures[i]
         Combined_X = np.stack(Combined_X)
+        Combined_X = scale_data(Combined_X, (0, 1, 2), ratio)
         Combined_y = np.array(Combined_y)
         Combined_y = to_categorical(Combined_y)
 
@@ -81,11 +91,6 @@ class PredictionDataset(Dataset):
         self.y = torch.squeeze(self.y)
 
     def generate_sequences(self, tensor, window, stride):
-        tensor = torch.tensor(tensor.clone().detach())
-        print(tensor.size())
-        print(tensor)
-        tensor.unsqueeze(0)
-        print(tensor.size())
 
         X = list()
         y = list()
